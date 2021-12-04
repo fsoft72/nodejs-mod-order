@@ -1,0 +1,48 @@
+{
+	"system": {
+		"base_url": "http://localhost:12000",
+		"output_file_name": "/ramdisk/academy.log",
+		"authorization_template": "Bearer %(token)s",
+		"stop_on_error": true
+	},
+	"actions": [
+		{
+			"action": "include",
+			"filename": "../../user/tests/user.debug_login.json",
+			"exec": true
+		},
+		{
+			"action": "batch_exec",
+			"name": "switch_admin"
+		},
+		{
+			"method": "post",
+			"url": "/api/product/admin/add",
+			"auth": true,
+			"params": {
+				"name": "Prod #1",
+				"code": "prod001",
+				"price_net": 100,
+				"price_vat": 122,
+				"vat": 22,
+				"visible": true
+			},
+			"tests": [
+				{
+					"field": "product.code",
+					"value": "prod001"
+				},
+				{
+					"field": "product.id",
+					"mode": "EXISTS"
+				}
+			],
+			"fields": [
+				[
+					"product.id",
+					"id_prod_01"
+				]
+			]
+		}
+	]
+}

@@ -11,8 +11,8 @@ import {
 let _liwe: ILiWE = null;
 
 const _ = ( txt: string, vals: any = null, plural = false ) => {
-	return $l ( txt, vals, plural, "order" );
-}
+	return $l( txt, vals, plural, "order" );
+};
 
 let _coll_orders: DocumentCollection = null;
 let _coll_order_items: DocumentCollection = null;
@@ -279,7 +279,7 @@ export const get_order_details = ( req: ILRequest, id?: string, cback: LCback = 
 export const get_order_list = ( req: ILRequest, rows: number = -1, skip: number = 0, cback: LCback = null ): Promise<Order[]> => {
 	return new Promise( async ( resolve, reject ) => {
 		/*=== d2r_start get_order_list ===*/
-		const orders: Order[] = await collection_find_all_dict( req.db, COLL_ORDERS, { id_user: req.user.id }, OrderKeys, rows, skip );
+		const orders: Order[] = await collection_find_all_dict( req.db, COLL_ORDERS, { id_user: req.user.id }, OrderKeys, { skip, rows } );
 
 		return cback ? cback( null, orders ) : resolve( orders );
 		/*=== d2r_end get_order_list ===*/

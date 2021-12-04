@@ -1,0 +1,82 @@
+{
+	"system": {
+		"base_url": "http://localhost:12000",
+		"output_file_name": "/ramdisk/academy.log",
+		"authorization_template": "Bearer %(token)s",
+		"stop_on_error": true
+	},
+	"actions": [
+		{
+			"method": "post",
+			"url": "/api/order/add",
+			"auth": true,
+			"params": {
+				"prod_code": "prod001",
+				"qnt": 5
+			},
+			"tests": [
+				{
+					"field": "order.total_net",
+					"value": 500
+				},
+				{
+					"field": "order.items",
+					"value": 5
+				}
+			],
+			"fields": [
+				[
+					"order.id",
+					"id_order"
+				]
+			]
+		},
+		{
+			"method": "post",
+			"url": "/api/order/add",
+			"auth": true,
+			"params": {
+				"prod_code": "prod001",
+				"qnt": 1
+			},
+			"tests": [
+				{
+					"field": "order.total_net",
+					"value": 600
+				},
+				{
+					"field": "order.items",
+					"value": 6
+				}
+			]
+		},
+		{
+			"method": "get",
+			"url": "/api/order/details",
+			"auth": true,
+			"params": {
+				"id": "%(id_order)s"
+			},
+			"tests": [
+				{
+					"field": "order.total_net",
+					"value": 600
+				},
+				{
+					"field": "order.items.[0].prod_code",
+					"value": "prod001"
+				}
+			]
+		},
+		{
+			"method": "get",
+			"url": "/api/order/list",
+			"tests": [
+				{
+					"field": "orders.[0].id",
+					"value": "%(id_order)s"
+				}
+			]
+		}
+	]
+}

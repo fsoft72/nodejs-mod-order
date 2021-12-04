@@ -1,0 +1,18 @@
+{
+	"system": {
+		"base_url": "http://localhost:12000",
+		"authorization_template": "Bearer %(token)s"
+	},
+	"actions": [
+		{
+			"action": "include",
+			"filename": "product.tests.json",
+			"exec": true
+		},
+		{
+			"action": "include",
+			"filename": "order.tests.json",
+			"exec": true
+		}
+	]
+}
