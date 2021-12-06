@@ -60,24 +60,41 @@ const _order_get = async ( req: ILRequest, id?: string, code?: string, id_user?:
 	return order;
 };
 
-const _add_prod = ( req: ILRequest, order: Order, prod_code: string, qnt: number ): Promise<OrderItem> => {
+const _add_prod = ( req: ILRequest, order: Order, prod_code: string, qnt: number, single: boolean = false ): Promise<OrderItem> => {
 	return new Promise( async ( resolve, reject ) => {
-		let order_item: OrderItem = await collection_find_one_dict( req.db, COLL_ORDER_ITEMS, { id_order: order.id, prod_code } );
+		let order_item: OrderItem = null;
+
+		if ( single ) {
+			await collection_del_one_dict( req.db, COLL_ORDER_ITEMS, { id_order: order.id, prod_code } );
+			qnt = 1;
+		} else {
+			order_item = await collection_find_one_dict( req.db, COLL_ORDER_ITEMS, { id_order: order.id, prod_code } );
+		}
+
 		if ( !order_item ) order_item = { id: mkid( 'o_item' ), domain: order.domain, quant: 0 };
 
 		const prod: Product = await product_get( req, null, prod_code );
 		const err = { message: 'Product not found' };
 		if ( !prod ) return reject( err );
 
+		order_item.name = prod.name;
 		order_item.id_order = order.id;
 		order_item.prod_code = prod.code;
 		order_item.quant += qnt;
-		order_item.price_net = prod.price_net;
-		order_item.price_vat = prod.price_vat;
-		order_item.name = prod.name;
-		order_item.total_net = prod.price_net * order_item.quant;
-		order_item.total_vat = prod.price_vat * order_item.quant;
+		// Original price is saved to see discount
+		order_item.orig_price_net = prod.price_net;
+		order_item.orig_price_vat = prod.price_vat;
+		order_item.orig_total_net = order_item.orig_price_net * order_item.quant;
+		order_item.orig_total_vat = order_item.orig_price_vat * order_item.quant;
+
+		// In the order_item the "price_net/vat" is the price with discount
+		order_item.price_net = prod.curr_price_net;
+		order_item.price_vat = prod.curr_price_vat;
+		order_item.total_net = order_item.price_net * order_item.quant;
+		order_item.total_vat = order_item.price_vat * order_item.quant;
+
 		order_item.vat = prod.vat;
+		order_item.image = prod.image;
 
 		await collection_add( _coll_order_items, order_item );
 		order = await _calc_order_tots( req, order );
@@ -224,19 +241,20 @@ export const post_order_admin_tag = ( req: ILRequest, id: string, tags: string[]
 };
 // }}}
 
-// {{{ post_order_add ( req: ILRequest, prod_code: string, qnt: number, cback: LCBack = null ): Promise<Order>
+// {{{ post_order_add ( req: ILRequest, prod_code: string, qnt: number, single: boolean = false, cback: LCBack = null ): Promise<Order>
 /**
  * Adds a product to the current order
  *
  * @param prod_code - Product Code [req]
  * @param qnt - Quantity to add [req]
+ * @param single - If the product can be added only once to the order [opt]
  *
  */
-export const post_order_add = ( req: ILRequest, prod_code: string, qnt: number, cback: LCback = null ): Promise<Order> => {
+export const post_order_add = ( req: ILRequest, prod_code: string, qnt: number, single: boolean = false, cback: LCback = null ): Promise<Order> => {
 	return new Promise( async ( resolve, reject ) => {
 		/*=== d2r_start post_order_add ===*/
 		let order: Order = await _order_get( req );
-		const item: OrderItem = await _add_prod( req, order, prod_code, qnt );
+		const item: OrderItem = await _add_prod( req, order, prod_code, qnt, single );
 
 		keys_filter( order, OrderKeys );
 

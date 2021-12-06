@@ -65,6 +65,10 @@ export interface OrderItem {
 	name?: string;
 	/** Quantity */
 	quant?: number;
+	/** Original price (vat excl) */
+	orig_price_net?: number;
+	/** Original price (vat inc) */
+	orig_price_vat?: number;
 	/** Price net */
 	price_net?: number;
 	/** Price vat */
@@ -73,10 +77,16 @@ export interface OrderItem {
 	total_net?: number;
 	/** Total vat */
 	total_vat?: number;
+	/** Original total net */
+	orig_total_net?: number;
+	/** Original total vat */
+	orig_total_vat?: number;
 	/** The applied VAT */
 	vat?: number;
 	/** Coupon name */
 	coupon?: string;
+	/** Product image */
+	image?: string;
 }
 
 export const OrderItemKeys = {
@@ -86,12 +96,17 @@ export const OrderItemKeys = {
 	'prod_code': { type: 'string', priv: false },
 	'name': { type: 'string', priv: false },
 	'quant': { type: 'number', priv: false },
+	'orig_price_net': { type: 'number', priv: false },
+	'orig_price_vat': { type: 'number', priv: false },
 	'price_net': { type: 'number', priv: false },
 	'price_vat': { type: 'number', priv: false },
 	'total_net': { type: 'number', priv: false },
 	'total_vat': { type: 'number', priv: false },
+	'orig_total_net': { type: 'number', priv: false },
+	'orig_total_vat': { type: 'number', priv: false },
 	'vat': { type: 'number', priv: false },
 	'coupon': { type: 'string', priv: false },
+	'image': { type: 'string', priv: false },
 };
 
 /** OrderFull */
