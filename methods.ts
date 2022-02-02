@@ -325,14 +325,14 @@ export const order_db_init = ( liwe: ILiWE, cback: LCback = null ): Promise<bool
 			{ type: "persistent", fields: [ "status" ], unique: false },
 			{ type: "persistent", fields: [ "valid" ], unique: false },
 			{ type: "persistent", fields: [ "id_payment" ], unique: false },
-		], false );
+		] );
 
 		_coll_order_items = await collection_init( liwe.db, COLL_ORDER_ITEMS, [
 			{ type: "persistent", fields: [ "id" ], unique: true },
 			{ type: "persistent", fields: [ "domain" ], unique: false },
 			{ type: "persistent", fields: [ "id_order" ], unique: false },
 			{ type: "persistent", fields: [ "prod_code" ], unique: false },
-		], false );
+		] );
 
 		/*=== d2r_start order_db_init ===*/
 
