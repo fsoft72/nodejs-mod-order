@@ -100,33 +100,43 @@ const _add_prod = ( req: ILRequest, order: Order, prod_code: string, qnt: number
 		console.log( "\n\n\n==== IMAGE: ", order_item.image );
 
 		await collection_add( _coll_order_items, order_item );
-		const items: OrderItem[] = await _calc_order_tots( req, order );
+		const items: OrderItem[] = await _calc_order_tots_fetch( req, order );
 
 		return resolve( { ...order, items } );
 	} );
 };
 
-const _calc_order_tots = async ( req: ILRequest, order: Order ) => {
+const _calc_order_tots_fetch = async ( req: ILRequest, order: Order ) => {
 	const items: OrderItem[] = await collection_find_all_dict( req.db, COLL_ORDER_ITEMS, { id_order: order.id }, OrderItemKeys );
+
+	_calc_order_tots( order, items );
+
+	await collection_add( _coll_orders, order );
+
+	return items;
+};
+
+const _calc_order_tots = ( order: Order, items: OrderItem[] ) => {
 	let elems = 0;
 	let tot_net = 0;
 	let tot_vat = 0;
+	let orig_tot_vat = 0;
 
 	if ( items ) {
-		items.forEach( ( it ) => {
+		items.forEach( ( it: OrderItem ) => {
 			elems += it.quant;
 			tot_net += it.total_net;
 			tot_vat += it.total_vat;
+			orig_tot_vat += it.orig_total_vat;
 		} );
 	}
 
 	order.num_items = elems;
 	order.total_net = tot_net;
 	order.total_vat = tot_vat;
-
-	await collection_add( _coll_orders, order );
-
-	return items;
+	order.original_total_vat = orig_tot_vat;
+	// calc discount % from original_total_vat and total_vat, as integer
+	order.discount = Math.round( ( orig_tot_vat - tot_vat ) / orig_tot_vat * 100 );
 };
 /*=== d2r_end __file_header ===*/
 
@@ -357,14 +367,58 @@ export const get_order_cart = ( req: ILRequest, cback: LCback = null ): Promise<
 
 		order.items = items;
 
-		// Calc total in both net and VAT versions
-		order.total_net = items.reduce( ( acc, item ) => acc + item.price_net * item.quant, 0 );
-		order.total_vat = items.reduce( ( acc, item ) => acc + item.price_vat * item.quant, 0 );
+		_calc_order_tots( order, items );
 
 		keys_filter( order, OrderFullKeys );
 
 		return cback ? cback( null, order ) : resolve( order );
 		/*=== d2r_end get_order_cart ===*/
+	} );
+};
+// }}}
+
+// {{{ delete_order_item_del ( req: ILRequest, id_order: string, id_item: string, cback: LCBack = null ): Promise<OrderFull>
+/**
+ * Deletes an item from an order.
+
+Order must be in state `new`.
+
+Only admin and order owner can delete an item from an order.
+ *
+ * @param id_order - The order id [req]
+ * @param id_item - The item id [req]
+ *
+ */
+export const delete_order_item_del = ( req: ILRequest, id_order: string, id_item: string, cback: LCback = null ): Promise<OrderFull> => {
+	return new Promise( async ( resolve, reject ) => {
+		/*=== d2r_start delete_order_item_del ===*/
+		const err = { message: 'Order not found' };
+		const order: OrderFull = await _order_get( req, id_order );
+
+		if ( !order ) return cback ? cback( err ) : reject( err );
+		if ( order.status != OrderStatus.new ) {
+			err.message = 'Order not modifiable';
+			return cback ? cback( err ) : reject( err );
+		}
+
+		// TODO: also admin can delete an item
+		if ( order.id_user != req.user.id ) {
+			err.message = 'You are not the owner of this order';
+			return cback ? cback( err ) : reject( err );
+		}
+
+		await collection_del_one_dict( req.db, COLL_ORDER_ITEMS, { id: id_item } );
+
+		const items: OrderItem[] = await _calc_order_tots_fetch( req, order );
+
+		await collection_add( _coll_orders, order );
+
+		order.items = items;
+
+		keys_filter( order, OrderFullKeys );
+
+		return cback ? cback( null, order ) : resolve( order );
+		/*=== d2r_end delete_order_item_del ===*/
 	} );
 };
 // }}}

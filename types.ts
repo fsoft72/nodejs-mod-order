@@ -49,6 +49,10 @@ export interface Order {
 	total_net?: number;
 	/** Total order amount (vat incl) */
 	total_vat?: number;
+	/** The full price without discounts */
+	original_total_vat?: number;
+	/** Percentage of discount */
+	discount?: number;
 	/** Number of items in the order */
 	num_items?: number;
 	/** Flag T/F for the orders are valid */
@@ -69,6 +73,8 @@ export const OrderKeys = {
 	'status': { type: 'OrderStatus', priv: false },
 	'total_net': { type: 'number', priv: false },
 	'total_vat': { type: 'number', priv: false },
+	'original_total_vat': { type: 'number', priv: false },
+	'discount': { type: 'number', priv: false },
 	'num_items': { type: 'number', priv: false },
 	'valid': { type: 'boolean', priv: false },
 	'id_payment': { type: 'string', priv: false },
@@ -138,6 +144,8 @@ export interface OrderFull {
 	id?: string;
 	/** Unique order code */
 	code?: string;
+	/** The user id */
+	id_user?: string;
 	/** The user that created the order */
 	user?: User;
 	/** The order status [ 'new', 'open', 'confirmed', 'completed', 'canceled', 'aborted'] */
@@ -154,11 +162,16 @@ export interface OrderFull {
 	valid?: boolean;
 	/** Payment mode */
 	payment?: string;
+	/** The full price of all elements */
+	original_total_vat?: number;
+	/**  */
+	discount?: number;
 }
 
 export const OrderFullKeys = {
 	'id': { type: 'string', priv: false },
 	'code': { type: 'string', priv: false },
+	'id_user': { type: 'string', priv: false },
 	'user': { type: 'User', priv: false },
 	'status': { type: 'OrderStatus', priv: false },
 	'total_net': { type: 'number', priv: false },
@@ -167,5 +180,7 @@ export const OrderFullKeys = {
 	'items': { type: 'OrderItem[]', priv: false },
 	'valid': { type: 'boolean', priv: false },
 	'payment': { type: 'string', priv: false },
+	'original_total_vat': { type: 'number', priv: false },
+	'discount': { type: 'number', priv: false },
 };
 

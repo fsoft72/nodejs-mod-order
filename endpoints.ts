@@ -6,7 +6,7 @@ import { locale_load } from '../../liwe/locale';
 import { perms } from '../../liwe/auth';
 
 import {
-	post_order_admin_add, patch_order_admin_update, patch_order_admin_fields, get_order_admin_list, delete_order_admin_del, post_order_admin_tag, post_order_add, get_order_details, get_order_list, get_order_cart, order_db_init
+	post_order_admin_add, patch_order_admin_update, patch_order_admin_fields, get_order_admin_list, delete_order_admin_del, post_order_admin_tag, post_order_add, get_order_details, get_order_list, get_order_cart, delete_order_item_del, order_db_init
 } from './methods';
 
 import {
@@ -166,6 +166,21 @@ export const init = ( liwe: ILiWE ) => {
 		
 		
 		get_order_cart ( req, ( err: ILError, order: OrderFull ) => {
+			if ( err ) return send_error( res, err );
+
+			send_ok( res, { order } );
+		} );
+	} );
+
+	app.delete ( "/api/order/item/del", perms( [ "is-logged" ] ), ( req: ILRequest, res: ILResponse ) => {
+		const { id_order, id_item, ___errors } = typed_dict( req.body, [
+			{ name: "id_order", type: "string", required: true },
+			{ name: "id_item", type: "string", required: true }
+		] );
+
+		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
+
+		delete_order_item_del ( req,id_order, id_item,  ( err: ILError, order: OrderFull ) => {
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { order } );
