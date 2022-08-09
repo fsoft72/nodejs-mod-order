@@ -95,7 +95,9 @@ const _add_prod = ( req: ILRequest, order: Order, prod_code: string, qnt: number
 		order_item.total_vat = order_item.price_vat * order_item.quant;
 
 		order_item.vat = prod.vat;
-		order_item.image = prod.image;
+		order_item.image = prod.image_url;
+
+		console.log( "\n\n\n==== IMAGE: ", order_item.image );
 
 		await collection_add( _coll_order_items, order_item );
 		const items: OrderItem[] = await _calc_order_tots( req, order );
