@@ -6,11 +6,11 @@ import { locale_load } from '../../liwe/locale';
 import { perms } from '../../liwe/auth';
 
 import {
-	post_order_admin_add, patch_order_admin_update, patch_order_admin_fields, get_order_admin_list, delete_order_admin_del, post_order_admin_tag, post_order_add, get_order_details, get_order_list, order_db_init
+	post_order_admin_add, patch_order_admin_update, patch_order_admin_fields, get_order_admin_list, delete_order_admin_del, post_order_admin_tag, post_order_add, get_order_details, get_order_list, get_order_cart, order_db_init
 } from './methods';
 
 import {
-	Order, OrderFull, OrderItem
+	Order, OrderFull, OrderItem, OrderStatus, OrderStatusObj
 } from './types';
 
 /*=== d2r_start __header ===*/
@@ -28,7 +28,7 @@ export const init = ( liwe: ILiWE ) => {
 
 
 	app.post ( "/api/order/admin/add", perms( [ "order.add" ] ), ( req: ILRequest, res: ILResponse ) => {
-		const { prod_code, qnt, id_user, ___errors } = typed_dict( req.fields, [
+		const { prod_code, qnt, id_user, ___errors } = typed_dict( req.body, [
 			{ name: "prod_code", type: "string", required: true },
 			{ name: "qnt", type: "number", required: true, default: 1 },
 			{ name: "id_user", type: "string", required: true }
@@ -44,7 +44,7 @@ export const init = ( liwe: ILiWE ) => {
 	} );
 
 	app.patch ( "/api/order/admin/update", perms( [ "order.add" ] ), ( req: ILRequest, res: ILResponse ) => {
-		const { id, name, ___errors } = typed_dict( req.fields, [
+		const { id, name, ___errors } = typed_dict( req.body, [
 			{ name: "id", type: "string", required: true },
 			{ name: "name", type: "string" }
 		] );
@@ -59,7 +59,7 @@ export const init = ( liwe: ILiWE ) => {
 	} );
 
 	app.patch ( "/api/order/admin/fields", perms( [ "order.add" ] ), ( req: ILRequest, res: ILResponse ) => {
-		const { id, data, ___errors } = typed_dict( req.fields, [
+		const { id, data, ___errors } = typed_dict( req.body, [
 			{ name: "id", type: "string", required: true },
 			{ name: "data", type: "any", required: true }
 		] );
@@ -89,7 +89,7 @@ export const init = ( liwe: ILiWE ) => {
 	} );
 
 	app.delete ( "/api/order/admin/del", perms( [ "order.add" ] ), ( req: ILRequest, res: ILResponse ) => {
-		const { id, ___errors } = typed_dict( req.fields, [
+		const { id, ___errors } = typed_dict( req.body, [
 			{ name: "id", type: "string", required: true }
 		] );
 
@@ -103,7 +103,7 @@ export const init = ( liwe: ILiWE ) => {
 	} );
 
 	app.post ( "/api/order/admin/tag", perms( [ "order.add" ] ), ( req: ILRequest, res: ILResponse ) => {
-		const { id, tags, ___errors } = typed_dict( req.fields, [
+		const { id, tags, ___errors } = typed_dict( req.body, [
 			{ name: "id", type: "string", required: true },
 			{ name: "tags", type: "string[]", required: true }
 		] );
@@ -118,7 +118,7 @@ export const init = ( liwe: ILiWE ) => {
 	} );
 
 	app.post ( "/api/order/add", perms( [ "is-logged" ] ), ( req: ILRequest, res: ILResponse ) => {
-		const { prod_code, qnt, single, ___errors } = typed_dict( req.fields, [
+		const { prod_code, qnt, single, ___errors } = typed_dict( req.body, [
 			{ name: "prod_code", type: "string", required: true },
 			{ name: "qnt", type: "number", required: true, default: 1 },
 			{ name: "single", type: "boolean" }
@@ -126,7 +126,7 @@ export const init = ( liwe: ILiWE ) => {
 
 		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
 
-		post_order_add ( req,prod_code, qnt, single,  ( err: ILError, order: Order ) => {
+		post_order_add ( req,prod_code, qnt, single,  ( err: ILError, order: OrderFull ) => {
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { order } );
@@ -135,7 +135,7 @@ export const init = ( liwe: ILiWE ) => {
 
 	app.get ( "/api/order/details", ( req: ILRequest, res: ILResponse ) => {
 		const { id, ___errors } = typed_dict( req.query as any, [
-			{ name: "id", type: "string" }
+			{ name: "id", type: "string", required: true }
 		] );
 
 		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
@@ -159,6 +159,16 @@ export const init = ( liwe: ILiWE ) => {
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { orders } );
+		} );
+	} );
+
+	app.get ( "/api/order/cart", ( req: ILRequest, res: ILResponse ) => {
+		
+		
+		get_order_cart ( req, ( err: ILError, order: OrderFull ) => {
+			if ( err ) return send_error( res, err );
+
+			send_ok( res, { order } );
 		} );
 	} );
 

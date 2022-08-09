@@ -1,19 +1,12 @@
 
-import { ILRequest, LCback, ILiWE } from '../../liwe/types';
+import { ILRequest, ILResponse, LCback, ILiweConfig, ILError, ILiWE } from '../../liwe/types';
 import { mkid } from '../../liwe/utils';
-import {
-	collection_add,
-	collection_find_all,
-	collection_find_one_dict,
-	collection_find_all_dict,
-	collection_del_one_dict,
-	collection_init,
-} from '../../liwe/arangodb';
+import { collection_add, collection_count, collection_find_all, collection_find_one, collection_find_one_dict, collection_find_all_dict, collection_del_one_dict, collection_del_all_dict, collection_init, prepare_filters } from '../../liwe/arangodb';
 import { DocumentCollection } from 'arangojs/collection';
 import { $l } from '../../liwe/locale';
 
 import {
-	Order, OrderFull, OrderFullKeys, OrderItem, OrderItemKeys, OrderKeys
+	Order, OrderFull, OrderFullKeys, OrderItem, OrderItemKeys, OrderKeys, OrderStatus
 } from './types';
 
 let _liwe: ILiWE = null;
@@ -58,7 +51,7 @@ const _order_get = async ( req: ILRequest, id?: string, code?: string, id_user?:
 	}
 
 	if ( !order ) {
-		order = { id: mkid( 'order' ), id_user: req.user.id, domain: domain.code, status: 'new', code: mkcode() };
+		order = { id: mkid( 'order' ), id_user: req.user.id, domain: domain.code, status: OrderStatus.new, code: mkcode() };
 		order = await collection_add( _coll_orders, order );
 	} else {
 		if ( full ) user = await user_get( order.id_user );
@@ -68,7 +61,7 @@ const _order_get = async ( req: ILRequest, id?: string, code?: string, id_user?:
 	return order;
 };
 
-const _add_prod = ( req: ILRequest, order: Order, prod_code: string, qnt: number, single: boolean = false ): Promise<OrderItem> => {
+const _add_prod = ( req: ILRequest, order: Order, prod_code: string, qnt: number, single: boolean = false ): Promise<OrderFull> => {
 	return new Promise( async ( resolve, reject ) => {
 		let order_item: OrderItem = null;
 
@@ -79,7 +72,7 @@ const _add_prod = ( req: ILRequest, order: Order, prod_code: string, qnt: number
 			order_item = await collection_find_one_dict( req.db, COLL_ORDER_ITEMS, { id_order: order.id, prod_code } );
 		}
 
-		if ( !order_item ) order_item = { id: mkid( 'o_item' ), domain: order.domain, quant: 0 };
+		if ( !order_item ) order_item = { id: mkid( 'oitem' ), domain: order.domain, quant: 0 };
 
 		const prod: Product = await product_get( req, null, prod_code );
 		const err = { message: 'Product not found' };
@@ -105,35 +98,41 @@ const _add_prod = ( req: ILRequest, order: Order, prod_code: string, qnt: number
 		order_item.image = prod.image;
 
 		await collection_add( _coll_order_items, order_item );
-		order = await _calc_order_tots( req, order );
+		const items: OrderItem[] = await _calc_order_tots( req, order );
 
-		return resolve( order_item );
+		return resolve( { ...order, items } );
 	} );
 };
 
 const _calc_order_tots = async ( req: ILRequest, order: Order ) => {
-	const items: OrderItem[] = await collection_find_all_dict( req.db, COLL_ORDER_ITEMS, { id_order: order.id } );
+	const items: OrderItem[] = await collection_find_all_dict( req.db, COLL_ORDER_ITEMS, { id_order: order.id }, OrderItemKeys );
 	let elems = 0;
 	let tot_net = 0;
 	let tot_vat = 0;
 
-	items.forEach( ( it ) => {
-		elems += it.quant;
-		tot_net += it.total_net;
-		tot_vat += it.total_vat;
-	} );
+	if ( items ) {
+		items.forEach( ( it ) => {
+			elems += it.quant;
+			tot_net += it.total_net;
+			tot_vat += it.total_vat;
+		} );
+	}
 
-	order.items = elems;
+	order.num_items = elems;
 	order.total_net = tot_net;
 	order.total_vat = tot_vat;
 
-	return await collection_add( _coll_orders, order );
+	await collection_add( _coll_orders, order );
+
+	return items;
 };
 /*=== d2r_end __file_header ===*/
 
 // {{{ post_order_admin_add ( req: ILRequest, prod_code: string, qnt: number, id_user: string, cback: LCBack = null ): Promise<Order>
 /**
- * Adds a new order
+ * Adds order in the system.
+
+This function returns the full `Order` structure
  *
  * @param prod_code - Product Code [req]
  * @param qnt - Quantity to add [req]
@@ -143,7 +142,7 @@ const _calc_order_tots = async ( req: ILRequest, order: Order ) => {
 export const post_order_admin_add = ( req: ILRequest, prod_code: string, qnt: number, id_user: string, cback: LCback = null ): Promise<Order> => {
 	return new Promise( async ( resolve, reject ) => {
 		/*=== d2r_start post_order_admin_add ===*/
-		const order: Order = await _order_get( req, null, null, id_user );
+		const order: Order = await _order_get( req, null, null, id_user, false );
 		/*=== d2r_end post_order_admin_add ===*/
 	} );
 };
@@ -151,7 +150,9 @@ export const post_order_admin_add = ( req: ILRequest, prod_code: string, qnt: nu
 
 // {{{ patch_order_admin_update ( req: ILRequest, id: string, name?: string, cback: LCBack = null ): Promise<Order>
 /**
- * Updates an existing order
+ * Updates the order specified by `id`.
+
+This function returns the full `Order` structure
  *
  * @param id - Order ID [req]
  * @param name - Order name [opt]
@@ -168,7 +169,9 @@ export const patch_order_admin_update = ( req: ILRequest, id: string, name?: str
 
 // {{{ patch_order_admin_fields ( req: ILRequest, id: string, data: any, cback: LCBack = null ): Promise<Order>
 /**
- * Modifies some fields
+ * The call modifies one or more fields.
+
+This function returns the full `Order` structure
  *
  * @param id - The order ID [req]
  * @param data - The field / value to patch [req]
@@ -185,7 +188,11 @@ export const patch_order_admin_fields = ( req: ILRequest, id: string, data: any,
 
 // {{{ get_order_admin_list ( req: ILRequest, skip: number = 0, rows: number = -1, cback: LCBack = null ): Promise<Order[]>
 /**
- * List all orders
+ * Returns all orders.
+
+This function returns a list of full `Order` structure.
+
+This function supports pagination.
  *
  * @param skip - First line to return [opt]
  * @param rows - How many rows to return [opt]
@@ -198,7 +205,7 @@ export const get_order_admin_list = ( req: ILRequest, skip: number = 0, rows: nu
 		FOR o IN orders
 			FOR u IN users
 				FILTER u.id == o.id_user
-				RETURN { order: o, user: { name: u.name, lastname: u.lastname, email: u.email } }`, {} );
+				RETURN { order: o, user: { id: u.id, name: u.name, lastname: u.lastname, email: u.email } }`, {} );
 
 		const orders: Order[] = results.map( ( s ) => {
 			s.order.user_name = s.user.name;
@@ -218,7 +225,7 @@ export const get_order_admin_list = ( req: ILRequest, skip: number = 0, rows: nu
 
 // {{{ delete_order_admin_del ( req: ILRequest, id: string, cback: LCBack = null ): Promise<string>
 /**
- * Deletes a order
+ * Deletes a order from the system.
  *
  * @param id - The order id to be deleted [req]
  *
@@ -234,7 +241,7 @@ export const delete_order_admin_del = ( req: ILRequest, id: string, cback: LCbac
 
 // {{{ post_order_admin_tag ( req: ILRequest, id: string, tags: string[], cback: LCBack = null ): Promise<Order>
 /**
- * Tag a order
+ * This endpoint allows you to add tags to an order.
  *
  * @param id - The order ID [req]
  * @param tags - A list of tags to be added to the user [req]
@@ -249,40 +256,48 @@ export const post_order_admin_tag = ( req: ILRequest, id: string, tags: string[]
 };
 // }}}
 
-// {{{ post_order_add ( req: ILRequest, prod_code: string, qnt: number, single: boolean = false, cback: LCBack = null ): Promise<Order>
+// {{{ post_order_add ( req: ILRequest, prod_code: string, qnt: number, single: boolean = false, cback: LCBack = null ): Promise<OrderFull>
 /**
- * Adds a product to the current order
+ * Adds a product to the current order.
+
+This function returns the full `Order` structure
  *
  * @param prod_code - Product Code [req]
  * @param qnt - Quantity to add [req]
  * @param single - If the product can be added only once to the order [opt]
  *
  */
-export const post_order_add = ( req: ILRequest, prod_code: string, qnt: number, single: boolean = false, cback: LCback = null ): Promise<Order> => {
+export const post_order_add = ( req: ILRequest, prod_code: string, qnt: number, single: boolean = false, cback: LCback = null ): Promise<OrderFull> => {
 	return new Promise( async ( resolve, reject ) => {
 		/*=== d2r_start post_order_add ===*/
 		let order: Order = await _order_get( req );
-		const item: OrderItem = await _add_prod( req, order, prod_code, qnt, single );
+		const orderFull: OrderFull = await _add_prod( req, order, prod_code, qnt, single );
 
-		keys_filter( order, OrderKeys );
+		keys_filter( orderFull, OrderFullKeys );
 
-		return cback ? cback( null, order ) : resolve( order );
+		return cback ? cback( null, orderFull ) : resolve( orderFull );
 		/*=== d2r_end post_order_add ===*/
 	} );
 };
 // }}}
 
-// {{{ get_order_details ( req: ILRequest, id?: string, cback: LCBack = null ): Promise<OrderFull>
+// {{{ get_order_details ( req: ILRequest, id: string, cback: LCBack = null ): Promise<OrderFull>
 /**
- * Get all order details
+ * Returns all order details only if the order is `visible`.
+
+The order can be identified by  `id`, `code` or `code_forn`.
+
+You can pass more than a field, but one is enough.
+
+This function returns the full `Order` structure
  *
- * @param id - Order unique ID [opt]
+ * @param id - Order unique ID [req]
  *
  */
-export const get_order_details = ( req: ILRequest, id?: string, cback: LCback = null ): Promise<OrderFull> => {
+export const get_order_details = ( req: ILRequest, id: string, cback: LCback = null ): Promise<OrderFull> => {
 	return new Promise( async ( resolve, reject ) => {
 		/*=== d2r_start get_order_details ===*/
-		const order: OrderFull = await _order_get( req, id, null, null, true );
+		const order: OrderFull = await _order_get( req, id, null, null, true ) as any;
 		const items: OrderItem[] = await collection_find_all_dict( req.db, COLL_ORDER_ITEMS, { id_order: order.id }, OrderItemKeys );
 
 		keys_filter( order, OrderFullKeys );
@@ -296,7 +311,13 @@ export const get_order_details = ( req: ILRequest, id?: string, cback: LCback = 
 
 // {{{ get_order_list ( req: ILRequest, rows: number = -1, skip: number = 0, cback: LCBack = null ): Promise<Order[]>
 /**
- * List all orders
+ * Returns all visible orders.
+
+Orders with `visible` set to `false` are not shown.
+
+This function returns a list of full `Order` structure.
+
+This function supports pagination.
  *
  * @param rows - How many rows to return [opt]
  * @param skip - First line to return [opt]
@@ -309,6 +330,39 @@ export const get_order_list = ( req: ILRequest, rows: number = -1, skip: number 
 
 		return cback ? cback( null, orders ) : resolve( orders );
 		/*=== d2r_end get_order_list ===*/
+	} );
+};
+// }}}
+
+// {{{ get_order_cart ( req: ILRequest, cback: LCBack = null ): Promise<OrderFull>
+/**
+ * Returns the current cart with products for the logged in user.
+
+The order must be in status `new`
+ *
+
+ *
+ */
+export const get_order_cart = ( req: ILRequest, cback: LCback = null ): Promise<OrderFull> => {
+	return new Promise( async ( resolve, reject ) => {
+		/*=== d2r_start get_order_cart ===*/
+		const order: OrderFull = await _order_get( req, null, null, req.user.id, false );
+
+		// no order, or no order in 'new' means that the cart is empty
+		if ( !order || order.status != OrderStatus.new ) return cback ? cback( {} ) : resolve( {} );
+
+		const items: OrderItem[] = await collection_find_all_dict( req.db, COLL_ORDER_ITEMS, { id_order: order.id }, OrderItemKeys );
+
+		order.items = items;
+
+		// Calc total in both net and VAT versions
+		order.total_net = items.reduce( ( acc, item ) => acc + item.price_net * item.quant, 0 );
+		order.total_vat = items.reduce( ( acc, item ) => acc + item.price_vat * item.quant, 0 );
+
+		keys_filter( order, OrderFullKeys );
+
+		return cback ? cback( null, order ) : resolve( order );
+		/*=== d2r_end get_order_cart ===*/
 	} );
 };
 // }}}
@@ -333,14 +387,18 @@ export const order_db_init = ( liwe: ILiWE, cback: LCback = null ): Promise<bool
 			{ type: "persistent", fields: [ "status" ], unique: false },
 			{ type: "persistent", fields: [ "valid" ], unique: false },
 			{ type: "persistent", fields: [ "id_payment" ], unique: false },
-		] );
+		], { drop: false } );
 
 		_coll_order_items = await collection_init( liwe.db, COLL_ORDER_ITEMS, [
 			{ type: "persistent", fields: [ "id" ], unique: true },
 			{ type: "persistent", fields: [ "domain" ], unique: false },
 			{ type: "persistent", fields: [ "id_order" ], unique: false },
 			{ type: "persistent", fields: [ "prod_code" ], unique: false },
-		] );
+		], { drop: false } );
+
+		_coll_order_full = await collection_init( liwe.db, COLL_ORDER_FULL, [
+			{ type: "persistent", fields: [ "id" ], unique: true },
+		], { drop: false } );
 
 		/*=== d2r_start order_db_init ===*/
 

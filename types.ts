@@ -2,9 +2,32 @@
 import { User } from "../user/types";
 /*=== d2r_end __header ===*/
 
+export enum OrderStatus {
+	cancelled = "cancelled",
+	completed = "completed",
+	in_pay = "in_pay",
+	in_progress = "in_progress",
+	new = "new",
+	paid = "paid",
+	payment_error = "payment_error",
+	to_deliver = "to_deliver",
+};
+
+export const OrderStatusObj = {
+	__name: "OrderStatus",
+	cancelled: "cancelled",
+	completed: "completed",
+	in_pay: "in_pay",
+	in_progress: "in_progress",
+	new: "new",
+	paid: "paid",
+	payment_error: "payment_error",
+	to_deliver: "to_deliver",
+};
+
 /** Order */
 export interface Order {
-	/** Order unique ID */
+	/** the main id field */
 	id?: string;
 	/** The domain name */
 	domain?: string;
@@ -12,22 +35,22 @@ export interface Order {
 	code?: string;
 	/** The user that created the owner */
 	id_user?: string;
-	/**  */
+	/** The user name */
 	user_name?: string;
-	/**  */
+	/** The user lastname */
 	user_lastname?: string;
-	/**  */
+	/** The user email */
 	user_email?: string;
 	/** Session ID (when the user is not logged in) */
 	session?: string;
 	/** The order status [ 'new', 'open', 'confirmed', 'completed', 'canceled', 'aborted'] */
-	status?: string;
+	status?: OrderStatus;
 	/** Total order amount (vat excl) */
 	total_net?: number;
 	/** Total order amount (vat incl) */
 	total_vat?: number;
-	/** of items in the order */
-	items?: any;
+	/** Number of items in the order */
+	num_items?: number;
 	/** Flag T/F for the orders are valid */
 	valid?: boolean;
 	/** Payment mode */
@@ -43,22 +66,22 @@ export const OrderKeys = {
 	'user_lastname': { type: 'string', priv: false },
 	'user_email': { type: 'string', priv: false },
 	'session': { type: 'string', priv: false },
-	'status': { type: 'string', priv: false },
+	'status': { type: 'OrderStatus', priv: false },
 	'total_net': { type: 'number', priv: false },
 	'total_vat': { type: 'number', priv: false },
-	'items': { type: 'any', priv: false },
+	'num_items': { type: 'number', priv: false },
 	'valid': { type: 'boolean', priv: false },
 	'id_payment': { type: 'string', priv: false },
 };
 
 /** OrderItem */
 export interface OrderItem {
-	/** item unique ID */
-	id?: any;
+	/** the main id field */
+	id?: string;
 	/** The domain name */
 	domain?: string;
-	/** ID */
-	id_order?: any;
+	/** Order ID */
+	id_order?: string;
 	/** Product unique code */
 	prod_code?: string;
 	/** Product name */
@@ -90,9 +113,9 @@ export interface OrderItem {
 }
 
 export const OrderItemKeys = {
-	'id': { type: 'any', priv: false },
-	'domain': { type: 'string', priv: false },
-	'id_order': { type: 'any', priv: false },
+	'id': { type: 'string', priv: false },
+	'domain': { type: 'string', priv: true },
+	'id_order': { type: 'string', priv: false },
 	'prod_code': { type: 'string', priv: false },
 	'name': { type: 'string', priv: false },
 	'quant': { type: 'number', priv: false },
@@ -111,20 +134,22 @@ export const OrderItemKeys = {
 
 /** OrderFull */
 export interface OrderFull {
-	/** unique ID */
-	id?: any;
+	/** the main id field */
+	id?: string;
 	/** Unique order code */
 	code?: string;
 	/** The user that created the order */
 	user?: User;
 	/** The order status [ 'new', 'open', 'confirmed', 'completed', 'canceled', 'aborted'] */
-	status?: string;
+	status?: OrderStatus;
 	/** Total order amount (vat excl) */
 	total_net?: number;
 	/** Total order amount (vat incl) */
 	total_vat?: number;
-	/** of items in the order */
-	items?: any;
+	/** Number of items */
+	num_items?: number;
+	/** Number of items in the order */
+	items?: OrderItem[];
 	/** Flag T/F for the orders are valid */
 	valid?: boolean;
 	/** Payment mode */
@@ -132,13 +157,14 @@ export interface OrderFull {
 }
 
 export const OrderFullKeys = {
-	'id': { type: 'any', priv: false },
+	'id': { type: 'string', priv: false },
 	'code': { type: 'string', priv: false },
 	'user': { type: 'User', priv: false },
-	'status': { type: 'string', priv: false },
+	'status': { type: 'OrderStatus', priv: false },
 	'total_net': { type: 'number', priv: false },
 	'total_vat': { type: 'number', priv: false },
-	'items': { type: 'any', priv: false },
+	'num_items': { type: 'number', priv: false },
+	'items': { type: 'OrderItem[]', priv: false },
 	'valid': { type: 'boolean', priv: false },
 	'payment': { type: 'string', priv: false },
 };
