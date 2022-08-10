@@ -5,11 +5,9 @@ import { User } from "../user/types";
 export enum OrderStatus {
 	cancelled = "cancelled",
 	completed = "completed",
-	in_pay = "in_pay",
 	in_progress = "in_progress",
 	new = "new",
-	paid = "paid",
-	payment_error = "payment_error",
+	ready = "ready",
 	to_deliver = "to_deliver",
 };
 
@@ -17,12 +15,29 @@ export const OrderStatusObj = {
 	__name: "OrderStatus",
 	cancelled: "cancelled",
 	completed: "completed",
-	in_pay: "in_pay",
 	in_progress: "in_progress",
 	new: "new",
-	paid: "paid",
-	payment_error: "payment_error",
+	ready: "ready",
 	to_deliver: "to_deliver",
+};
+
+export enum OrderPaymentStatus {
+	aborted = "aborted",
+	canceled = "canceled",
+	in_pay = "in_pay",
+	not_paid = "not_paid",
+	paid = "paid",
+	refunded = "refunded",
+};
+
+export const OrderPaymentStatusObj = {
+	__name: "OrderPaymentStatus",
+	aborted: "aborted",
+	canceled: "canceled",
+	in_pay: "in_pay",
+	not_paid: "not_paid",
+	paid: "paid",
+	refunded: "refunded",
 };
 
 /** Order */
@@ -58,7 +73,11 @@ export interface Order {
 	/** Flag T/F for the orders are valid */
 	valid?: boolean;
 	/** Payment mode */
-	id_payment?: string;
+	payment_mode?: string;
+	/** The transaction ID */
+	transaction_id?: string;
+	/**  */
+	payment_status?: OrderPaymentStatus;
 }
 
 export const OrderKeys = {
@@ -77,7 +96,9 @@ export const OrderKeys = {
 	'discount': { type: 'number', priv: false },
 	'num_items': { type: 'number', priv: false },
 	'valid': { type: 'boolean', priv: false },
-	'id_payment': { type: 'string', priv: false },
+	'payment_mode': { type: 'string', priv: false },
+	'transaction_id': { type: 'string', priv: false },
+	'payment_status': { type: 'OrderPaymentStatus', priv: false },
 };
 
 /** OrderItem */
@@ -166,6 +187,12 @@ export interface OrderFull {
 	original_total_vat?: number;
 	/**  */
 	discount?: number;
+	/**  */
+	payment_mode?: string;
+	/**  */
+	transaction_id?: string;
+	/**  */
+	payment_status?: OrderPaymentStatus;
 }
 
 export const OrderFullKeys = {
@@ -182,5 +209,33 @@ export const OrderFullKeys = {
 	'payment': { type: 'string', priv: false },
 	'original_total_vat': { type: 'number', priv: false },
 	'discount': { type: 'number', priv: false },
+	'payment_mode': { type: 'string', priv: false },
+	'transaction_id': { type: 'string', priv: false },
+	'payment_status': { type: 'OrderPaymentStatus', priv: false },
+};
+
+/** OrderPaymentLog */
+export interface OrderPaymentLog {
+	/** the main id field */
+	id?: string;
+	/** The order ID */
+	id_order?: string;
+	/** The payment mode */
+	payment_mode?: string;
+	/** The transaction id */
+	transaction_id?: string;
+	/** Event name */
+	event_name?: string;
+	/** Transaction data */
+	data?: any;
+}
+
+export const OrderPaymentLogKeys = {
+	'id': { type: 'string', priv: false },
+	'id_order': { type: 'string', priv: false },
+	'payment_mode': { type: 'string', priv: false },
+	'transaction_id': { type: 'string', priv: false },
+	'event_name': { type: 'string', priv: false },
+	'data': { type: 'any', priv: false },
 };
 

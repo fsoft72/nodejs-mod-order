@@ -6,22 +6,22 @@ import { DocumentCollection } from 'arangojs/collection';
 import { $l } from '../../liwe/locale';
 
 import {
-	Order, OrderFull, OrderFullKeys, OrderItem, OrderItemKeys, OrderKeys, OrderStatus
+	Order, OrderFull, OrderFullKeys, OrderItem, OrderItemKeys, OrderKeys, OrderPaymentLog, OrderPaymentLogKeys, OrderPaymentStatus, OrderStatus
 } from './types';
 
 let _liwe: ILiWE = null;
 
 const _ = ( txt: string, vals: any = null, plural = false ) => {
-	return $l( txt, vals, plural, "order" );
-};
+	return $l ( txt, vals, plural, "order" );
+}
 
 let _coll_orders: DocumentCollection = null;
 let _coll_order_items: DocumentCollection = null;
-let _coll_order_full: DocumentCollection = null;
+let _coll_order_log: DocumentCollection = null;
 
 const COLL_ORDERS = "orders";
 const COLL_ORDER_ITEMS = "order_items";
-const COLL_ORDER_FULL = "order_full";
+const COLL_ORDER_LOG = "order_log";
 
 /*=== d2r_start __file_header === */
 import { system_domain_get_by_session } from '../system/methods';
@@ -30,6 +30,7 @@ import { product_get } from '../product/methods';
 import { date_format, keys_filter } from '../../liwe/utils';
 import { user_get } from '../user/methods';
 import { User } from '../user/types';
+import { challenge_check } from '../../liwe/utils';
 
 const mkcode = () => {
 	const d = date_format( new Date(), 'yyyymmddHHMMSS' );
@@ -42,7 +43,7 @@ const _order_get = async ( req: ILRequest, id?: string, code?: string, id_user?:
 	const domain = await system_domain_get_by_session( req );
 	let user: User = null;
 
-	if ( !id_user ) id_user = req.user.id;
+	if ( !id_user ) id_user = req?.user?.id || 'xxx';
 
 	if ( id || code ) {
 		order = await collection_find_one_dict( req.db, COLL_ORDERS, { id, code } );
@@ -423,6 +424,126 @@ export const delete_order_item_del = ( req: ILRequest, id_order: string, id_item
 };
 // }}}
 
+// {{{ post_order_transaction_start ( req: ILRequest, id_order: string, challenge: string, payment_mode: string, transaction_id: string, cback: LCBack = null ): Promise<OrderPaymentLog>
+/**
+ * The `challenge` parameter is a `MD5` hash created composing (`email` + `name` + `remote_secret_key` as set in the `data.json` config file under `security / remote`).
+ *
+ * @param id_order - The order ID [req]
+ * @param challenge - The challenge verification code [req]
+ * @param payment_mode - The payment mode [req]
+ * @param transaction_id - The transaction ID [req]
+ *
+ */
+export const post_order_transaction_start = ( req: ILRequest, id_order: string, challenge: string, payment_mode: string, transaction_id: string, cback: LCback = null ): Promise<OrderPaymentLog> => {
+	return new Promise( async ( resolve, reject ) => {
+		/*=== d2r_start post_order_transaction_start ===*/
+		const err = { message: 'Invalid challenge' };
+
+		if ( !challenge_check( challenge, [ id_order, transaction_id, payment_mode ] ) ) return cback ? cback( err ) : reject( err );
+
+		const order = await order_transaction_start( req, id_order, payment_mode, transaction_id, 'transaction.start' );
+
+		return cback ? cback( null, order ) : resolve( order );
+		/*=== d2r_end post_order_transaction_start ===*/
+	} );
+};
+// }}}
+
+// {{{ post_order_transaction_update ( req: ILRequest, challenge: string, payment_mode: string, transaction_id: string, event_name?: string, data?: any, cback: LCBack = null ): Promise<OrderPaymentLog>
+/**
+ * The `challenge` parameter is a `MD5` hash created composing (`email` + `name` + `remote_secret_key` as set in the `data.json` config file under `security / remote`).
+ *
+ * @param challenge - The challenge verification code [req]
+ * @param payment_mode - The payment mode [req]
+ * @param transaction_id - The transaction ID [req]
+ * @param event_name - The event name [opt]
+ * @param data -  [opt]
+ *
+ */
+export const post_order_transaction_update = ( req: ILRequest, challenge: string, payment_mode: string, transaction_id: string, event_name?: string, data?: any, cback: LCback = null ): Promise<OrderPaymentLog> => {
+	return new Promise( async ( resolve, reject ) => {
+		/*=== d2r_start post_order_transaction_update ===*/
+		const err = { message: 'Invalid challenge' };
+
+		if ( !challenge_check( challenge, [ payment_mode, event_name, transaction_id ] ) ) return cback ? cback( err ) : reject( err );
+
+		const order: Order = await order_get_by_transaction_id( req, transaction_id, payment_mode );
+
+		if ( !order ) {
+			err.message = 'Order not found';
+			return cback ? cback( err ) : reject( err );
+		}
+
+		const td = await order_transaction_update( req, order.id, transaction_id, event_name, data );
+
+		return cback ? cback( null, td ) : resolve( td );
+		/*=== d2r_end post_order_transaction_update ===*/
+	} );
+};
+// }}}
+
+// {{{ post_order_transaction_success ( req: ILRequest, challenge: string, transaction_id: string, payment_mode?: string, cback: LCBack = null ): Promise<Order>
+/**
+ * Mark an order as "success"
+ *
+ * @param challenge - Authorization challenge [req]
+ * @param transaction_id - The transaction ID [req]
+ * @param payment_mode - The payment mode [opt]
+ *
+ */
+export const post_order_transaction_success = ( req: ILRequest, challenge: string, transaction_id: string, payment_mode?: string, cback: LCback = null ): Promise<Order> => {
+	return new Promise( async ( resolve, reject ) => {
+		/*=== d2r_start post_order_transaction_success ===*/
+		const err = { message: 'Invalid challenge' };
+
+		if ( !challenge_check( challenge, [ transaction_id, payment_mode ] ) ) return cback ? cback( err ) : reject( err );
+
+		let order: Order = await order_get_by_transaction_id( req, transaction_id, payment_mode );
+
+		if ( !order ) {
+			err.message = 'Order not found';
+			return cback ? cback( err ) : reject( err );
+		}
+
+		order = await order_payment_completed( req, order.id );
+
+		return cback ? cback( null, order ) : resolve( order );
+		/*=== d2r_end post_order_transaction_success ===*/
+	} );
+};
+// }}}
+
+// {{{ post_order_transaction_failed ( req: ILRequest, challenge: string, transaction_id: string, payment_mode?: string, cback: LCBack = null ): Promise<Order>
+/**
+ * Mark an order with "payment failed"
+ *
+ * @param challenge - Authorization challenge [req]
+ * @param transaction_id - The transaction ID [req]
+ * @param payment_mode - The payment mode [opt]
+ *
+ */
+export const post_order_transaction_failed = ( req: ILRequest, challenge: string, transaction_id: string, payment_mode?: string, cback: LCback = null ): Promise<Order> => {
+	return new Promise( async ( resolve, reject ) => {
+		/*=== d2r_start post_order_transaction_failed ===*/
+		const err = { message: 'Invalid challenge' };
+
+		if ( !challenge_check( challenge, [ transaction_id, payment_mode ] ) ) return cback ? cback( err ) : reject( err );
+
+		let order: Order = await order_get_by_transaction_id( req, transaction_id, payment_mode );
+
+		if ( !order ) {
+			err.message = 'Order not found';
+			return cback ? cback( err ) : reject( err );
+		}
+
+		order = await order_payment_cancelled( req, order.id );
+
+		return cback ? cback( null, order ) : resolve( order );
+		/*=== d2r_end post_order_transaction_failed ===*/
+	} );
+};
+// }}}
+
 
 /**
  * Initializes the order database
@@ -442,7 +563,9 @@ export const order_db_init = ( liwe: ILiWE, cback: LCback = null ): Promise<bool
 			{ type: "persistent", fields: [ "session" ], unique: false },
 			{ type: "persistent", fields: [ "status" ], unique: false },
 			{ type: "persistent", fields: [ "valid" ], unique: false },
-			{ type: "persistent", fields: [ "id_payment" ], unique: false },
+			{ type: "persistent", fields: [ "payment_mode" ], unique: false },
+			{ type: "persistent", fields: [ "transaction_id" ], unique: false },
+			{ type: "persistent", fields: [ "payment_status" ], unique: false },
 		], { drop: false } );
 
 		_coll_order_items = await collection_init( liwe.db, COLL_ORDER_ITEMS, [
@@ -452,12 +575,152 @@ export const order_db_init = ( liwe: ILiWE, cback: LCback = null ): Promise<bool
 			{ type: "persistent", fields: [ "prod_code" ], unique: false },
 		], { drop: false } );
 
-		_coll_order_full = await collection_init( liwe.db, COLL_ORDER_FULL, [
+		_coll_order_log = await collection_init( liwe.db, COLL_ORDER_LOG, [
 			{ type: "persistent", fields: [ "id" ], unique: true },
+			{ type: "persistent", fields: [ "id_order" ], unique: false },
+			{ type: "persistent", fields: [ "payment_mode" ], unique: false },
+			{ type: "persistent", fields: [ "transaction_id" ], unique: false },
+			{ type: "persistent", fields: [ "event_name" ], unique: false },
 		], { drop: false } );
 
 		/*=== d2r_start order_db_init ===*/
 
 		/*=== d2r_end order_db_init ===*/
+	} );
+};
+
+/**
+ * Starts a transaction for the given order.
+ *
+ * @param req - the Request field [req]
+ * @param id_order - The order ID [req]
+ * @param payment_mode - The payment mode [req]
+ * @param transaction_id - The transatction id [req]
+ * @param event_name - The event name [opt]
+ * @param data - Additional data [opt]
+ *
+ */
+export const order_transaction_start = ( req: ILRequest, id_order: string, payment_mode: string, transaction_id: string, event_name?: string, data?: any, cback: LCback = null ): Promise<OrderPaymentLog> => {
+	return new Promise( async ( resolve, reject ) => {
+		/*=== d2r_start order_transaction_start ===*/
+		const order: Order = await _order_get( req, id_order );
+		const log: OrderPaymentLog = {
+			id: mkid( 'trns' ),
+			id_order,
+			payment_mode,
+			transaction_id,
+			event_name,
+			data,
+		};
+
+		order.payment_status = OrderPaymentStatus.in_pay;
+		order.payment_mode = payment_mode;
+		order.transaction_id = transaction_id;
+
+		await collection_add( _coll_orders, order );
+		const log2 = await collection_add( _coll_order_log, log, false, OrderPaymentLogKeys );
+
+		return cback ? cback( null, log2 ) : resolve( log2 );
+		/*=== d2r_end order_transaction_start ===*/
+	} );
+};
+
+/**
+ * Updates the status of a transaction
+ *
+ * @param req - the Request field [req]
+ * @param id_order - The ID order [req]
+ * @param transaction_id - The transaction ID [req]
+ * @param event_name - The event name [opt]
+ * @param data - Additional data [opt]
+ *
+ */
+export const order_transaction_update = ( req: ILRequest, id_order: string, transaction_id: string, event_name?: string, data?: any, cback: LCback = null ): Promise<OrderPaymentLog> => {
+	return new Promise( async ( resolve, reject ) => {
+		/*=== d2r_start order_transaction_update ===*/
+		let log: OrderPaymentLog = {
+			id: mkid( 'trns' ),
+			id_order,
+			transaction_id,
+			event_name,
+			data,
+		};
+
+		console.log( "==== TRANSACTION UPDATE" );
+
+		log = await collection_add( _coll_order_log, log, false, OrderPaymentLogKeys );
+
+		return cback ? cback( null, log ) : resolve( log );
+		/*=== d2r_end order_transaction_update ===*/
+	} );
+};
+
+/**
+ * Marks an order as paid completely.
+ *
+ * @param req - the Request field [req]
+ * @param id_order - The Order ID [req]
+ *
+ */
+export const order_payment_completed = ( req: ILRequest, id_order: string, cback: LCback = null ): Promise<Order> => {
+	return new Promise( async ( resolve, reject ) => {
+		/*=== d2r_start order_payment_completed ===*/
+		const err = { message: "Order not found" };
+		let order: Order = await _order_get( req, id_order );
+
+		if ( !order ) return cback ? cback( err ) : reject( err );
+
+		order.payment_status = OrderPaymentStatus.paid;
+		order.status = OrderStatus.ready;
+
+		order = await collection_add( _coll_orders, order, false, OrderKeys );
+
+		return cback ? cback( null, order ) : resolve( order );
+		/*=== d2r_end order_payment_completed ===*/
+	} );
+};
+
+/**
+ * This function marks an order as 'cancelled'
+ *
+ * @param req - the Request field [req]
+ * @param id_order -  [req]
+ *
+ */
+export const order_payment_cancelled = ( req: ILRequest, id_order: string, cback: LCback = null ): Promise<Order> => {
+	return new Promise( async ( resolve, reject ) => {
+		/*=== d2r_start order_payment_cancelled ===*/
+		const err = { message: "Order not found" };
+		let order: Order = await _order_get( req, id_order );
+
+		if ( !order ) return cback ? cback( err ) : reject( err );
+
+		order.payment_status = OrderPaymentStatus.aborted;
+		order = await collection_add( _coll_orders, order, false, OrderKeys );
+
+		return cback ? cback( null, order ) : resolve( order );
+		/*=== d2r_end order_payment_cancelled ===*/
+	} );
+};
+
+/**
+ * Returns the order with the `transaction_id` specified.
+
+To avoid duplicates, you can also specify the `payment_mode` but it is optional.
+ *
+ * @param req - the Request field [req]
+ * @param transaction_id - The transaction ID [req]
+ * @param payment_mode - The payment mode [opt]
+ *
+ */
+export const order_get_by_transaction_id = ( req: ILRequest, transaction_id: string, payment_mode?: string, cback: LCback = null ): Promise<Order> => {
+	return new Promise( async ( resolve, reject ) => {
+		/*=== d2r_start order_get_by_transaction_id ===*/
+		const err = { message: "Order not found" };
+		const order: Order = await collection_find_one_dict( req.db, COLL_ORDERS, { transaction_id, payment_mode }, OrderKeys );
+
+		if ( !order || ( !transaction_id && !payment_mode ) ) return cback ? cback( err ) : reject( err );
+		return cback ? cback( null, order ) : resolve( order );
+		/*=== d2r_end order_get_by_transaction_id ===*/
 	} );
 };

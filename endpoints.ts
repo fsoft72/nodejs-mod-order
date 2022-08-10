@@ -6,11 +6,11 @@ import { locale_load } from '../../liwe/locale';
 import { perms } from '../../liwe/auth';
 
 import {
-	post_order_admin_add, patch_order_admin_update, patch_order_admin_fields, get_order_admin_list, delete_order_admin_del, post_order_admin_tag, post_order_add, get_order_details, get_order_list, get_order_cart, delete_order_item_del, order_db_init
+	post_order_admin_add, patch_order_admin_update, patch_order_admin_fields, get_order_admin_list, delete_order_admin_del, post_order_admin_tag, post_order_add, get_order_details, get_order_list, get_order_cart, delete_order_item_del, post_order_transaction_start, post_order_transaction_update, post_order_transaction_success, post_order_transaction_failed, order_db_init, order_transaction_start, order_transaction_update, order_payment_completed, order_payment_cancelled, order_get_by_transaction_id
 } from './methods';
 
 import {
-	Order, OrderFull, OrderItem, OrderStatus, OrderStatusObj
+	Order, OrderFull, OrderItem, OrderPaymentLog, OrderPaymentStatus, OrderPaymentStatusObj, OrderStatus, OrderStatusObj
 } from './types';
 
 /*=== d2r_start __header ===*/
@@ -181,6 +181,73 @@ export const init = ( liwe: ILiWE ) => {
 		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
 
 		delete_order_item_del ( req,id_order, id_item,  ( err: ILError, order: OrderFull ) => {
+			if ( err ) return send_error( res, err );
+
+			send_ok( res, { order } );
+		} );
+	} );
+
+	app.post ( "/api/order/transaction/start", ( req: ILRequest, res: ILResponse ) => {
+		const { id_order, challenge, payment_mode, transaction_id, ___errors } = typed_dict( req.body, [
+			{ name: "id_order", type: "string", required: true },
+			{ name: "challenge", type: "string", required: true },
+			{ name: "payment_mode", type: "string", required: true },
+			{ name: "transaction_id", type: "string", required: true }
+		] );
+
+		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
+
+		post_order_transaction_start ( req,id_order, challenge, payment_mode, transaction_id,  ( err: ILError, log: OrderPaymentLog ) => {
+			if ( err ) return send_error( res, err );
+
+			send_ok( res, { log } );
+		} );
+	} );
+
+	app.post ( "/api/order/transaction/update", ( req: ILRequest, res: ILResponse ) => {
+		const { challenge, payment_mode, transaction_id, event_name, data, ___errors } = typed_dict( req.body, [
+			{ name: "challenge", type: "string", required: true },
+			{ name: "payment_mode", type: "string", required: true },
+			{ name: "transaction_id", type: "string", required: true },
+			{ name: "event_name", type: "string" },
+			{ name: "data", type: "any" }
+		] );
+
+		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
+
+		post_order_transaction_update ( req,challenge, payment_mode, transaction_id, event_name, data,  ( err: ILError, log: OrderPaymentLog ) => {
+			if ( err ) return send_error( res, err );
+
+			send_ok( res, { log } );
+		} );
+	} );
+
+	app.post ( "/api/order/transaction/success", ( req: ILRequest, res: ILResponse ) => {
+		const { challenge, transaction_id, payment_mode, ___errors } = typed_dict( req.body, [
+			{ name: "challenge", type: "string", required: true },
+			{ name: "transaction_id", type: "string", required: true },
+			{ name: "payment_mode", type: "string" }
+		] );
+
+		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
+
+		post_order_transaction_success ( req,challenge, transaction_id, payment_mode,  ( err: ILError, order: Order ) => {
+			if ( err ) return send_error( res, err );
+
+			send_ok( res, { order } );
+		} );
+	} );
+
+	app.post ( "/api/order/transaction/failed", ( req: ILRequest, res: ILResponse ) => {
+		const { challenge, transaction_id, payment_mode, ___errors } = typed_dict( req.body, [
+			{ name: "challenge", type: "string", required: true },
+			{ name: "transaction_id", type: "string", required: true },
+			{ name: "payment_mode", type: "string" }
+		] );
+
+		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
+
+		post_order_transaction_failed ( req,challenge, transaction_id, payment_mode,  ( err: ILError, order: Order ) => {
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { order } );
