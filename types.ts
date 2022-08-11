@@ -185,14 +185,16 @@ export interface OrderFull {
 	payment?: string;
 	/** The full price of all elements */
 	original_total_vat?: number;
-	/**  */
+	/** Total order discount */
 	discount?: number;
-	/**  */
+	/** The payment mode used */
 	payment_mode?: string;
-	/**  */
+	/** The transaction id */
 	transaction_id?: string;
-	/**  */
+	/** Order payment status */
 	payment_status?: OrderPaymentStatus;
+	/** Order Creation Date */
+	created?: Date;
 }
 
 export const OrderFullKeys = {
@@ -212,6 +214,7 @@ export const OrderFullKeys = {
 	'payment_mode': { type: 'string', priv: false },
 	'transaction_id': { type: 'string', priv: false },
 	'payment_status': { type: 'OrderPaymentStatus', priv: false },
+	'created': { type: 'Date', priv: false },
 };
 
 /** OrderPaymentLog */

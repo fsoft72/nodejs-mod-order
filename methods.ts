@@ -12,8 +12,8 @@ import {
 let _liwe: ILiWE = null;
 
 const _ = ( txt: string, vals: any = null, plural = false ) => {
-	return $l ( txt, vals, plural, "order" );
-}
+	return $l( txt, vals, plural, "order" );
+};
 
 let _coll_orders: DocumentCollection = null;
 let _coll_order_items: DocumentCollection = null;
@@ -58,6 +58,22 @@ const _order_get = async ( req: ILRequest, id?: string, code?: string, id_user?:
 		if ( full ) user = await user_get( order.id_user );
 		( order as any ).user = user;
 	}
+
+	return order;
+};
+
+const _order_get_full = async ( req: ILRequest, id?: string | null, code?: string | null, filter = true ) => {
+	let order: OrderFull = null;
+
+	order = await _order_get( req, id, code, null, true );
+
+	if ( !order ) return null;
+
+	const items: OrderItem[] = await collection_find_all_dict( req.db, COLL_ORDER_ITEMS, { id_order: order.id }, OrderItemKeys );
+	order.items = items;
+	_calc_order_tots( order, items );
+
+	if ( filter ) keys_filter( order, OrderFullKeys );
 
 	return order;
 };
@@ -221,14 +237,17 @@ export const get_order_admin_list = ( req: ILRequest, skip: number = 0, rows: nu
 				RETURN { order: o, user: { id: u.id, name: u.name, lastname: u.lastname, email: u.email } }`, {} );
 
 		const orders: Order[] = results.map( ( s ) => {
+			s.order.user = s.user;
+			/*
 			s.order.user_name = s.user.name;
 			s.order.user_lastname = s.user.lastname;
 			s.order.user_email = s.user.email;
+			*/
 
 			return s.order;
 		} );
 
-		// keys_filter( orders, OrderKeys );
+		// keys_filter( orders, OrderFullKeys );
 
 		return cback ? cback( null, orders ) : resolve( orders );
 		/*=== d2r_end get_order_admin_list ===*/
@@ -365,11 +384,8 @@ export const get_order_cart = ( req: ILRequest, cback: LCback = null ): Promise<
 		if ( !order || order.status != OrderStatus.new ) return cback ? cback( {} ) : resolve( {} );
 
 		const items: OrderItem[] = await collection_find_all_dict( req.db, COLL_ORDER_ITEMS, { id_order: order.id }, OrderItemKeys );
-
 		order.items = items;
-
 		_calc_order_tots( order, items );
-
 		keys_filter( order, OrderFullKeys );
 
 		return cback ? cback( null, order ) : resolve( order );
@@ -540,6 +556,24 @@ export const post_order_transaction_failed = ( req: ILRequest, challenge: string
 
 		return cback ? cback( null, order ) : resolve( order );
 		/*=== d2r_end post_order_transaction_failed ===*/
+	} );
+};
+// }}}
+
+// {{{ get_order_admin_details ( req: ILRequest, id: string, cback: LCBack = null ): Promise<OrderFull>
+/**
+ *
+ *
+ * @param id - The order ID [req]
+ *
+ */
+export const get_order_admin_details = ( req: ILRequest, id: string, cback: LCback = null ): Promise<OrderFull> => {
+	return new Promise( async ( resolve, reject ) => {
+		/*=== d2r_start get_order_admin_details ===*/
+		const order: OrderFull = await _order_get_full( req, id );
+
+		return cback ? cback( null, order ) : resolve( order );
+		/*=== d2r_end get_order_admin_details ===*/
 	} );
 };
 // }}}

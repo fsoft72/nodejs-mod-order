@@ -6,7 +6,7 @@ import { locale_load } from '../../liwe/locale';
 import { perms } from '../../liwe/auth';
 
 import {
-	post_order_admin_add, patch_order_admin_update, patch_order_admin_fields, get_order_admin_list, delete_order_admin_del, post_order_admin_tag, post_order_add, get_order_details, get_order_list, get_order_cart, delete_order_item_del, post_order_transaction_start, post_order_transaction_update, post_order_transaction_success, post_order_transaction_failed, order_db_init, order_transaction_start, order_transaction_update, order_payment_completed, order_payment_cancelled, order_get_by_transaction_id
+	post_order_admin_add, patch_order_admin_update, patch_order_admin_fields, get_order_admin_list, delete_order_admin_del, post_order_admin_tag, post_order_add, get_order_details, get_order_list, get_order_cart, delete_order_item_del, post_order_transaction_start, post_order_transaction_update, post_order_transaction_success, post_order_transaction_failed, get_order_admin_details, order_db_init, order_transaction_start, order_transaction_update, order_payment_completed, order_payment_cancelled, order_get_by_transaction_id
 } from './methods';
 
 import {
@@ -248,6 +248,20 @@ export const init = ( liwe: ILiWE ) => {
 		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
 
 		post_order_transaction_failed ( req,challenge, transaction_id, payment_mode,  ( err: ILError, order: Order ) => {
+			if ( err ) return send_error( res, err );
+
+			send_ok( res, { order } );
+		} );
+	} );
+
+	app.get ( "/api/order/admin/details", perms( [ "is-logged" ] ), ( req: ILRequest, res: ILResponse ) => {
+		const { id, ___errors } = typed_dict( req.query as any, [
+			{ name: "id", type: "string", required: true }
+		] );
+
+		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
+
+		get_order_admin_details ( req,id,  ( err: ILError, order: OrderFull ) => {
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { order } );
