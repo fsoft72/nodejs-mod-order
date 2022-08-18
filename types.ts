@@ -78,6 +78,8 @@ export interface Order {
 	transaction_id?: string;
 	/**  */
 	payment_status?: OrderPaymentStatus;
+	/** When the order has been deleted */
+	deleted?: Date;
 }
 
 export const OrderKeys = {
@@ -99,6 +101,7 @@ export const OrderKeys = {
 	'payment_mode': { type: 'string', priv: false },
 	'transaction_id': { type: 'string', priv: false },
 	'payment_status': { type: 'OrderPaymentStatus', priv: false },
+	'deleted': { type: 'Date', priv: true },
 };
 
 /** OrderItem */

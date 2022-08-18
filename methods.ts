@@ -1,6 +1,6 @@
 
 import { ILRequest, ILResponse, LCback, ILiweConfig, ILError, ILiWE } from '../../liwe/types';
-import { mkid } from '../../liwe/utils';
+import { keys_remove, mkid } from '../../liwe/utils';
 import { collection_add, collection_count, collection_find_all, collection_find_one, collection_find_one_dict, collection_find_all_dict, collection_del_one_dict, collection_del_all_dict, collection_init, prepare_filters } from '../../liwe/arangodb';
 import { DocumentCollection } from 'arangojs/collection';
 import { $l } from '../../liwe/locale';
@@ -232,18 +232,14 @@ export const get_order_admin_list = ( req: ILRequest, skip: number = 0, rows: nu
 		/*=== d2r_start get_order_admin_list ===*/
 		const results: any[] = await collection_find_all( req.db, `
 		FOR o IN orders
+			FILTER o.deleted == null
 			FOR u IN users
 				FILTER u.id == o.id_user
 				RETURN { order: o, user: { id: u.id, name: u.name, lastname: u.lastname, email: u.email } }`, {} );
 
 		const orders: Order[] = results.map( ( s ) => {
 			s.order.user = s.user;
-			/*
-			s.order.user_name = s.user.name;
-			s.order.user_lastname = s.user.lastname;
-			s.order.user_email = s.user.email;
-			*/
-
+			keys_remove( s.order, [ '_id', '_key', '_rev' ] );
 			return s.order;
 		} );
 
@@ -260,17 +256,19 @@ export const get_order_admin_list = ( req: ILRequest, skip: number = 0, rows: nu
  * Deletes a order from the system.
  *
  * @param id - The order id to be deleted [req]
- * @returns The order id deleted
+ *
  */
 export const delete_order_admin_del = ( req: ILRequest, id: string, cback: LCback = null ): Promise<string> => {
 	return new Promise( async ( resolve, reject ) => {
 		/*=== d2r_start delete_order_admin_del ===*/
+		const err = { message: 'Order not found' };
+		const order: Order = await _order_get( req, id, null, null, false );
 
-		// deletes all order items
-		await collection_del_all_dict( req.db, COLL_ORDER_ITEMS, { id_order: id } );
+		if ( !order ) return cback ? cback( err, null ) : reject( err );
 
-		// deletes the order
-		await collection_del_one_dict( req.db, COLL_ORDERS, { id } );
+		order.deleted = new Date();
+
+		await collection_add( _coll_orders, order );
 
 		return cback ? cback( null, id ) : resolve( id );
 		/*=== d2r_end delete_order_admin_del ===*/
@@ -585,6 +583,28 @@ export const get_order_admin_details = ( req: ILRequest, id: string, cback: LCba
 };
 // }}}
 
+// {{{ delete_order_admin_del_real ( req: ILRequest, id: string, cback: LCBack = null ): Promise<string>
+/**
+ * Deletes a order from the system for real (removing everything from the database)
+ *
+ * @param id - The order id to be deleted [req]
+ *
+ */
+export const delete_order_admin_del_real = ( req: ILRequest, id: string, cback: LCback = null ): Promise<string> => {
+	return new Promise( async ( resolve, reject ) => {
+		/*=== d2r_start delete_order_admin_del_real ===*/
+		// deletes all order items
+		await collection_del_all_dict( req.db, COLL_ORDER_ITEMS, { id_order: id } );
+
+		// deletes the order
+		await collection_del_one_dict( req.db, COLL_ORDERS, { id } );
+
+		return cback ? cback( null, id ) : resolve( id );
+		/*=== d2r_end delete_order_admin_del_real ===*/
+	} );
+};
+// }}}
+
 
 /**
  * Initializes the order database
@@ -607,6 +627,7 @@ export const order_db_init = ( liwe: ILiWE, cback: LCback = null ): Promise<bool
 			{ type: "persistent", fields: [ "payment_mode" ], unique: false },
 			{ type: "persistent", fields: [ "transaction_id" ], unique: false },
 			{ type: "persistent", fields: [ "payment_status" ], unique: false },
+			{ type: "persistent", fields: [ "deleted" ], unique: false },
 		], { drop: false } );
 
 		_coll_order_items = await collection_init( liwe.db, COLL_ORDER_ITEMS, [
