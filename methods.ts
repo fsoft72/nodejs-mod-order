@@ -114,7 +114,7 @@ const _add_prod = ( req: ILRequest, order: Order, prod_code: string, qnt: number
 		order_item.vat = prod.vat;
 		order_item.image = prod.image_url;
 
-		console.log( "\n\n\n==== IMAGE: ", order_item.image );
+		// console.log( "\n\n\n==== IMAGE: ", order_item.image );
 
 		await collection_add( _coll_order_items, order_item );
 		const items: OrderItem[] = await _calc_order_tots_fetch( req, order );
@@ -461,6 +461,8 @@ export const post_order_transaction_start = ( req: ILRequest, id_order: string, 
 		/*=== d2r_start post_order_transaction_start ===*/
 		const err = { message: 'Invalid challenge' };
 
+		// console.log( "===== START: ", { id_order, payment_mode, transaction_id, session_id } );
+
 		if ( !challenge_check( challenge, [ id_order, transaction_id, session_id, payment_mode ] ) ) return cback ? cback( err ) : reject( err );
 
 		const order = await order_transaction_start( req, id_order, payment_mode, transaction_id, session_id, 'transaction.start' );
@@ -554,7 +556,7 @@ export const post_order_transaction_failed = ( req: ILRequest, challenge: string
 		/*=== d2r_start post_order_transaction_failed ===*/
 		const err = { message: 'Invalid challenge' };
 
-		if ( !challenge_check( challenge, [ transaction_id, payment_mode ] ) ) return cback ? cback( err ) : reject( err );
+		if ( !challenge_check( challenge, [ transaction_id, session_id, payment_mode ] ) ) return cback ? cback( err ) : reject( err );
 
 		let order: Order = await order_get_by_transaction_id( req, transaction_id, session_id, payment_mode );
 
@@ -793,6 +795,8 @@ export const order_get_by_transaction_id = ( req: ILRequest, transaction_id?: st
 		/*=== d2r_start order_get_by_transaction_id ===*/
 		const err = { message: "Order not found" };
 		const order: Order = await collection_find_one_dict( req.db, COLL_ORDERS, { transaction_id, payment_mode }, OrderKeys );
+
+		// console.log( "===== TRANSACTION: ", order );
 
 		if ( !order || ( !transaction_id && !payment_mode ) ) return cback ? cback( err ) : reject( err );
 		return cback ? cback( null, order ) : resolve( order );
