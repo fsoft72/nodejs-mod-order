@@ -76,6 +76,8 @@ export interface Order {
 	payment_mode?: string;
 	/** The transaction ID */
 	transaction_id?: string;
+	/** The session ID for payment */
+	session_id?: string;
 	/**  */
 	payment_status?: OrderPaymentStatus;
 	/** When the order has been deleted */
@@ -99,7 +101,8 @@ export const OrderKeys = {
 	'num_items': { type: 'number', priv: false },
 	'valid': { type: 'boolean', priv: false },
 	'payment_mode': { type: 'string', priv: false },
-	'transaction_id': { type: 'string', priv: false },
+	'transaction_id': { type: 'string', priv: true },
+	'session_id': { type: 'string', priv: true },
 	'payment_status': { type: 'OrderPaymentStatus', priv: false },
 	'deleted': { type: 'Date', priv: true },
 };
@@ -230,6 +233,8 @@ export interface OrderPaymentLog {
 	payment_mode?: string;
 	/** The transaction id */
 	transaction_id?: string;
+	/**  */
+	session_id?: string;
 	/** Event name */
 	event_name?: string;
 	/** Transaction data */
@@ -241,6 +246,7 @@ export const OrderPaymentLogKeys = {
 	'id_order': { type: 'string', priv: false },
 	'payment_mode': { type: 'string', priv: false },
 	'transaction_id': { type: 'string', priv: false },
+	'session_id': { type: 'string', priv: false },
 	'event_name': { type: 'string', priv: false },
 	'data': { type: 'any', priv: false },
 };

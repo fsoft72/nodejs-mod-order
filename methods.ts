@@ -1,6 +1,6 @@
 
 import { ILRequest, ILResponse, LCback, ILiweConfig, ILError, ILiWE } from '../../liwe/types';
-import { keys_remove, mkid } from '../../liwe/utils';
+import { mkid } from '../../liwe/utils';
 import { collection_add, collection_count, collection_find_all, collection_find_one, collection_find_one_dict, collection_find_all_dict, collection_del_one_dict, collection_del_all_dict, collection_init, prepare_filters } from '../../liwe/arangodb';
 import { DocumentCollection } from 'arangojs/collection';
 import { $l } from '../../liwe/locale';
@@ -30,7 +30,7 @@ import { product_get } from '../product/methods';
 import { date_format, keys_filter } from '../../liwe/utils';
 import { user_get } from '../user/methods';
 import { User } from '../user/types';
-import { challenge_check } from '../../liwe/utils';
+import { challenge_check, keys_remove } from '../../liwe/utils';
 
 const mkcode = () => {
 	const d = date_format( new Date(), 'yyyymmddHHMMSS' );
@@ -445,7 +445,7 @@ export const delete_order_item_del = ( req: ILRequest, id_order: string, id_item
 };
 // }}}
 
-// {{{ post_order_transaction_start ( req: ILRequest, id_order: string, challenge: string, payment_mode: string, transaction_id: string, cback: LCBack = null ): Promise<OrderPaymentLog>
+// {{{ post_order_transaction_start ( req: ILRequest, id_order: string, challenge: string, payment_mode: string, transaction_id: string, session_id?: string, cback: LCBack = null ): Promise<OrderPaymentLog>
 /**
  * The `challenge` parameter is a `MD5` hash created composing (`email` + `name` + `remote_secret_key` as set in the `data.json` config file under `security / remote`).
  *
@@ -453,16 +453,17 @@ export const delete_order_item_del = ( req: ILRequest, id_order: string, id_item
  * @param challenge - The challenge verification code [req]
  * @param payment_mode - The payment mode [req]
  * @param transaction_id - The transaction ID [req]
+ * @param session_id - The session ID (if any) [opt]
  *
  */
-export const post_order_transaction_start = ( req: ILRequest, id_order: string, challenge: string, payment_mode: string, transaction_id: string, cback: LCback = null ): Promise<OrderPaymentLog> => {
+export const post_order_transaction_start = ( req: ILRequest, id_order: string, challenge: string, payment_mode: string, transaction_id: string, session_id?: string, cback: LCback = null ): Promise<OrderPaymentLog> => {
 	return new Promise( async ( resolve, reject ) => {
 		/*=== d2r_start post_order_transaction_start ===*/
 		const err = { message: 'Invalid challenge' };
 
-		if ( !challenge_check( challenge, [ id_order, transaction_id, payment_mode ] ) ) return cback ? cback( err ) : reject( err );
+		if ( !challenge_check( challenge, [ id_order, transaction_id, session_id, payment_mode ] ) ) return cback ? cback( err ) : reject( err );
 
-		const order = await order_transaction_start( req, id_order, payment_mode, transaction_id, 'transaction.start' );
+		const order = await order_transaction_start( req, id_order, payment_mode, transaction_id, session_id, 'transaction.start' );
 
 		return cback ? cback( null, order ) : resolve( order );
 		/*=== d2r_end post_order_transaction_start ===*/
@@ -470,32 +471,33 @@ export const post_order_transaction_start = ( req: ILRequest, id_order: string, 
 };
 // }}}
 
-// {{{ post_order_transaction_update ( req: ILRequest, challenge: string, payment_mode: string, transaction_id: string, event_name?: string, data?: any, cback: LCBack = null ): Promise<OrderPaymentLog>
+// {{{ post_order_transaction_update ( req: ILRequest, challenge: string, payment_mode: string, transaction_id: string, session_id?: string, event_name?: string, data?: any, cback: LCBack = null ): Promise<OrderPaymentLog>
 /**
  * The `challenge` parameter is a `MD5` hash created composing (`email` + `name` + `remote_secret_key` as set in the `data.json` config file under `security / remote`).
  *
  * @param challenge - The challenge verification code [req]
  * @param payment_mode - The payment mode [req]
  * @param transaction_id - The transaction ID [req]
+ * @param session_id - The session ID (if any) [opt]
  * @param event_name - The event name [opt]
- * @param data -  [opt]
+ * @param data - The JSON data [opt]
  *
  */
-export const post_order_transaction_update = ( req: ILRequest, challenge: string, payment_mode: string, transaction_id: string, event_name?: string, data?: any, cback: LCback = null ): Promise<OrderPaymentLog> => {
+export const post_order_transaction_update = ( req: ILRequest, challenge: string, payment_mode: string, transaction_id: string, session_id?: string, event_name?: string, data?: any, cback: LCback = null ): Promise<OrderPaymentLog> => {
 	return new Promise( async ( resolve, reject ) => {
 		/*=== d2r_start post_order_transaction_update ===*/
 		const err = { message: 'Invalid challenge' };
 
-		if ( !challenge_check( challenge, [ payment_mode, event_name, transaction_id ] ) ) return cback ? cback( err ) : reject( err );
+		if ( !challenge_check( challenge, [ payment_mode, transaction_id, session_id ] ) ) return cback ? cback( err ) : reject( err );
 
-		const order: Order = await order_get_by_transaction_id( req, transaction_id, payment_mode );
+		const order: Order = await order_get_by_transaction_id( req, transaction_id, session_id, payment_mode );
 
 		if ( !order ) {
 			err.message = 'Order not found';
 			return cback ? cback( err ) : reject( err );
 		}
 
-		const td = await order_transaction_update( req, order.id, transaction_id, event_name, data );
+		const td = await order_transaction_update( req, order.id, transaction_id, session_id, event_name, data );
 
 		return cback ? cback( null, td ) : resolve( td );
 		/*=== d2r_end post_order_transaction_update ===*/
@@ -503,23 +505,24 @@ export const post_order_transaction_update = ( req: ILRequest, challenge: string
 };
 // }}}
 
-// {{{ post_order_transaction_success ( req: ILRequest, challenge: string, transaction_id: string, payment_mode?: string, cback: LCBack = null ): Promise<Order>
+// {{{ post_order_transaction_success ( req: ILRequest, challenge: string, transaction_id: string, session_id?: string, payment_mode?: string, cback: LCBack = null ): Promise<Order>
 /**
  * Mark an order as "success"
  *
  * @param challenge - Authorization challenge [req]
  * @param transaction_id - The transaction ID [req]
+ * @param session_id - The session ID (if any) [opt]
  * @param payment_mode - The payment mode [opt]
  *
  */
-export const post_order_transaction_success = ( req: ILRequest, challenge: string, transaction_id: string, payment_mode?: string, cback: LCback = null ): Promise<Order> => {
+export const post_order_transaction_success = ( req: ILRequest, challenge: string, transaction_id: string, session_id?: string, payment_mode?: string, cback: LCback = null ): Promise<Order> => {
 	return new Promise( async ( resolve, reject ) => {
 		/*=== d2r_start post_order_transaction_success ===*/
 		const err = { message: 'Invalid challenge' };
 
-		if ( !challenge_check( challenge, [ transaction_id, payment_mode ] ) ) return cback ? cback( err ) : reject( err );
+		if ( !challenge_check( challenge, [ transaction_id, session_id, payment_mode ] ) ) return cback ? cback( err ) : reject( err );
 
-		let order: Order = await order_get_by_transaction_id( req, transaction_id, payment_mode );
+		let order: Order = await order_get_by_transaction_id( req, transaction_id, session_id, payment_mode );
 
 		if ( !order ) {
 			err.message = 'Order not found';
@@ -534,23 +537,26 @@ export const post_order_transaction_success = ( req: ILRequest, challenge: strin
 };
 // }}}
 
-// {{{ post_order_transaction_failed ( req: ILRequest, challenge: string, transaction_id: string, payment_mode?: string, cback: LCBack = null ): Promise<Order>
+// {{{ post_order_transaction_failed ( req: ILRequest, challenge: string, transaction_id: string, session_id?: string, payment_mode?: string, cback: LCBack = null ): Promise<Order>
 /**
  * Mark an order with "payment failed"
+
+
  *
  * @param challenge - Authorization challenge [req]
  * @param transaction_id - The transaction ID [req]
+ * @param session_id - The Session ID [opt]
  * @param payment_mode - The payment mode [opt]
  *
  */
-export const post_order_transaction_failed = ( req: ILRequest, challenge: string, transaction_id: string, payment_mode?: string, cback: LCback = null ): Promise<Order> => {
+export const post_order_transaction_failed = ( req: ILRequest, challenge: string, transaction_id: string, session_id?: string, payment_mode?: string, cback: LCback = null ): Promise<Order> => {
 	return new Promise( async ( resolve, reject ) => {
 		/*=== d2r_start post_order_transaction_failed ===*/
 		const err = { message: 'Invalid challenge' };
 
 		if ( !challenge_check( challenge, [ transaction_id, payment_mode ] ) ) return cback ? cback( err ) : reject( err );
 
-		let order: Order = await order_get_by_transaction_id( req, transaction_id, payment_mode );
+		let order: Order = await order_get_by_transaction_id( req, transaction_id, session_id, payment_mode );
 
 		if ( !order ) {
 			err.message = 'Order not found';
@@ -626,6 +632,7 @@ export const order_db_init = ( liwe: ILiWE, cback: LCback = null ): Promise<bool
 			{ type: "persistent", fields: [ "valid" ], unique: false },
 			{ type: "persistent", fields: [ "payment_mode" ], unique: false },
 			{ type: "persistent", fields: [ "transaction_id" ], unique: false },
+			{ type: "persistent", fields: [ "session_id" ], unique: false },
 			{ type: "persistent", fields: [ "payment_status" ], unique: false },
 			{ type: "persistent", fields: [ "deleted" ], unique: false },
 		], { drop: false } );
@@ -642,6 +649,7 @@ export const order_db_init = ( liwe: ILiWE, cback: LCback = null ): Promise<bool
 			{ type: "persistent", fields: [ "id_order" ], unique: false },
 			{ type: "persistent", fields: [ "payment_mode" ], unique: false },
 			{ type: "persistent", fields: [ "transaction_id" ], unique: false },
+			{ type: "persistent", fields: [ "session_id" ], unique: false },
 			{ type: "persistent", fields: [ "event_name" ], unique: false },
 		], { drop: false } );
 
@@ -658,11 +666,12 @@ export const order_db_init = ( liwe: ILiWE, cback: LCback = null ): Promise<bool
  * @param id_order - The order ID [req]
  * @param payment_mode - The payment mode [req]
  * @param transaction_id - The transatction id [req]
+ * @param session_id - The session ID [opt]
  * @param event_name - The event name [opt]
  * @param data - Additional data [opt]
  *
  */
-export const order_transaction_start = ( req: ILRequest, id_order: string, payment_mode: string, transaction_id: string, event_name?: string, data?: any, cback: LCback = null ): Promise<OrderPaymentLog> => {
+export const order_transaction_start = ( req: ILRequest, id_order: string, payment_mode: string, transaction_id: string, session_id?: string, event_name?: string, data?: any, cback: LCback = null ): Promise<OrderPaymentLog> => {
 	return new Promise( async ( resolve, reject ) => {
 		/*=== d2r_start order_transaction_start ===*/
 		const order: Order = await _order_get( req, id_order );
@@ -671,6 +680,7 @@ export const order_transaction_start = ( req: ILRequest, id_order: string, payme
 			id_order,
 			payment_mode,
 			transaction_id,
+			session_id,
 			event_name,
 			data,
 		};
@@ -693,22 +703,22 @@ export const order_transaction_start = ( req: ILRequest, id_order: string, payme
  * @param req - the Request field [req]
  * @param id_order - The ID order [req]
  * @param transaction_id - The transaction ID [req]
+ * @param session_id - The session ID [opt]
  * @param event_name - The event name [opt]
  * @param data - Additional data [opt]
  *
  */
-export const order_transaction_update = ( req: ILRequest, id_order: string, transaction_id: string, event_name?: string, data?: any, cback: LCback = null ): Promise<OrderPaymentLog> => {
+export const order_transaction_update = ( req: ILRequest, id_order: string, transaction_id: string, session_id?: string, event_name?: string, data?: any, cback: LCback = null ): Promise<OrderPaymentLog> => {
 	return new Promise( async ( resolve, reject ) => {
 		/*=== d2r_start order_transaction_update ===*/
 		let log: OrderPaymentLog = {
 			id: mkid( 'trns' ),
 			id_order,
 			transaction_id,
+			session_id,
 			event_name,
 			data,
 		};
-
-		console.log( "==== TRANSACTION UPDATE" );
 
 		log = await collection_add( _coll_order_log, log, false, OrderPaymentLogKeys );
 
@@ -766,16 +776,19 @@ export const order_payment_cancelled = ( req: ILRequest, id_order: string, cback
 };
 
 /**
- * Returns the order with the `transaction_id` specified.
+ * Returns the order with the `transaction_id` / `session_id` specified.
 
 To avoid duplicates, you can also specify the `payment_mode` but it is optional.
+
+At least one between `transaction_id` and `session_id` must be specified.
  *
  * @param req - the Request field [req]
- * @param transaction_id - The transaction ID [req]
+ * @param transaction_id - The transaction ID [opt]
+ * @param session_id - The session ID [opt]
  * @param payment_mode - The payment mode [opt]
  *
  */
-export const order_get_by_transaction_id = ( req: ILRequest, transaction_id: string, payment_mode?: string, cback: LCback = null ): Promise<Order> => {
+export const order_get_by_transaction_id = ( req: ILRequest, transaction_id?: string, session_id?: string, payment_mode?: string, cback: LCback = null ): Promise<Order> => {
 	return new Promise( async ( resolve, reject ) => {
 		/*=== d2r_start order_get_by_transaction_id ===*/
 		const err = { message: "Order not found" };

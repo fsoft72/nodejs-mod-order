@@ -188,16 +188,17 @@ export const init = ( liwe: ILiWE ) => {
 	} );
 
 	app.post ( "/api/order/transaction/start", ( req: ILRequest, res: ILResponse ) => {
-		const { id_order, challenge, payment_mode, transaction_id, ___errors } = typed_dict( req.body, [
+		const { id_order, challenge, payment_mode, transaction_id, session_id, ___errors } = typed_dict( req.body, [
 			{ name: "id_order", type: "string", required: true },
 			{ name: "challenge", type: "string", required: true },
 			{ name: "payment_mode", type: "string", required: true },
-			{ name: "transaction_id", type: "string", required: true }
+			{ name: "transaction_id", type: "string", required: true },
+			{ name: "session_id", type: "string" }
 		] );
 
 		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
 
-		post_order_transaction_start ( req,id_order, challenge, payment_mode, transaction_id,  ( err: ILError, log: OrderPaymentLog ) => {
+		post_order_transaction_start ( req,id_order, challenge, payment_mode, transaction_id, session_id,  ( err: ILError, log: OrderPaymentLog ) => {
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { log } );
@@ -205,17 +206,18 @@ export const init = ( liwe: ILiWE ) => {
 	} );
 
 	app.post ( "/api/order/transaction/update", ( req: ILRequest, res: ILResponse ) => {
-		const { challenge, payment_mode, transaction_id, event_name, data, ___errors } = typed_dict( req.body, [
+		const { challenge, payment_mode, transaction_id, session_id, event_name, data, ___errors } = typed_dict( req.body, [
 			{ name: "challenge", type: "string", required: true },
 			{ name: "payment_mode", type: "string", required: true },
 			{ name: "transaction_id", type: "string", required: true },
+			{ name: "session_id", type: "string" },
 			{ name: "event_name", type: "string" },
 			{ name: "data", type: "any" }
 		] );
 
 		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
 
-		post_order_transaction_update ( req,challenge, payment_mode, transaction_id, event_name, data,  ( err: ILError, log: OrderPaymentLog ) => {
+		post_order_transaction_update ( req,challenge, payment_mode, transaction_id, session_id, event_name, data,  ( err: ILError, log: OrderPaymentLog ) => {
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { log } );
@@ -223,15 +225,16 @@ export const init = ( liwe: ILiWE ) => {
 	} );
 
 	app.post ( "/api/order/transaction/success", ( req: ILRequest, res: ILResponse ) => {
-		const { challenge, transaction_id, payment_mode, ___errors } = typed_dict( req.body, [
+		const { challenge, transaction_id, session_id, payment_mode, ___errors } = typed_dict( req.body, [
 			{ name: "challenge", type: "string", required: true },
 			{ name: "transaction_id", type: "string", required: true },
+			{ name: "session_id", type: "string" },
 			{ name: "payment_mode", type: "string" }
 		] );
 
 		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
 
-		post_order_transaction_success ( req,challenge, transaction_id, payment_mode,  ( err: ILError, order: Order ) => {
+		post_order_transaction_success ( req,challenge, transaction_id, session_id, payment_mode,  ( err: ILError, order: Order ) => {
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { order } );
@@ -239,15 +242,16 @@ export const init = ( liwe: ILiWE ) => {
 	} );
 
 	app.post ( "/api/order/transaction/failed", ( req: ILRequest, res: ILResponse ) => {
-		const { challenge, transaction_id, payment_mode, ___errors } = typed_dict( req.body, [
+		const { challenge, transaction_id, session_id, payment_mode, ___errors } = typed_dict( req.body, [
 			{ name: "challenge", type: "string", required: true },
 			{ name: "transaction_id", type: "string", required: true },
+			{ name: "session_id", type: "string" },
 			{ name: "payment_mode", type: "string" }
 		] );
 
 		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
 
-		post_order_transaction_failed ( req,challenge, transaction_id, payment_mode,  ( err: ILError, order: Order ) => {
+		post_order_transaction_failed ( req,challenge, transaction_id, session_id, payment_mode,  ( err: ILError, order: Order ) => {
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { order } );
