@@ -260,12 +260,19 @@ export const get_order_admin_list = ( req: ILRequest, skip: number = 0, rows: nu
  * Deletes a order from the system.
  *
  * @param id - The order id to be deleted [req]
- *
+ * @returns The order id deleted
  */
 export const delete_order_admin_del = ( req: ILRequest, id: string, cback: LCback = null ): Promise<string> => {
 	return new Promise( async ( resolve, reject ) => {
 		/*=== d2r_start delete_order_admin_del ===*/
 
+		// deletes all order items
+		await collection_del_all_dict( req.db, COLL_ORDER_ITEMS, { id_order: id } );
+
+		// deletes the order
+		await collection_del_one_dict( req.db, COLL_ORDERS, { id } );
+
+		return cback ? cback( null, id ) : resolve( id );
 		/*=== d2r_end delete_order_admin_del ===*/
 	} );
 };
