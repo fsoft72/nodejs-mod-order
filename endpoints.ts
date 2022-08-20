@@ -6,7 +6,7 @@ import { locale_load } from '../../liwe/locale';
 import { perms } from '../../liwe/auth';
 
 import {
-	post_order_admin_add, patch_order_admin_update, patch_order_admin_fields, get_order_admin_list, delete_order_admin_del, post_order_admin_tag, post_order_add, get_order_details, get_order_list, get_order_cart, delete_order_item_del, post_order_transaction_start, post_order_transaction_update, post_order_transaction_success, post_order_transaction_failed, get_order_admin_details, delete_order_admin_del_real, order_db_init, order_transaction_start, order_transaction_update, order_payment_completed, order_payment_cancelled, order_get_by_transaction_id
+	post_order_admin_add, patch_order_admin_update, patch_order_admin_fields, get_order_admin_list, delete_order_admin_del, post_order_admin_tag, post_order_add, get_order_details, get_order_list, get_order_cart, delete_order_item_del, post_order_transaction_start, post_order_transaction_update, post_order_transaction_success, post_order_transaction_failed, get_order_admin_details, delete_order_admin_del_real, order_db_init, order_transaction_start, order_transaction_update, order_payment_completed, order_payment_cancelled, order_get_by_transaction_id, order_get_full
 } from './methods';
 
 import {

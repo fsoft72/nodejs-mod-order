@@ -1,7 +1,7 @@
 
 import { ILRequest, ILResponse, LCback, ILiweConfig, ILError, ILiWE } from '../../liwe/types';
 import { mkid } from '../../liwe/utils';
-import { collection_add, collection_count, collection_find_all, collection_find_one, collection_find_one_dict, collection_find_all_dict, collection_del_one_dict, collection_del_all_dict, collection_init, prepare_filters } from '../../liwe/arangodb';
+import { collection_add, collection_count, collection_count_dict, collection_find_all, collection_find_one, collection_find_one_dict, collection_find_all_dict, collection_del_one_dict, collection_del_all_dict, collection_init, prepare_filters } from '../../liwe/arangodb';
 import { DocumentCollection } from 'arangojs/collection';
 import { $l } from '../../liwe/locale';
 
@@ -801,5 +801,25 @@ export const order_get_by_transaction_id = ( req: ILRequest, transaction_id?: st
 		if ( !order || ( !transaction_id && !payment_mode ) ) return cback ? cback( err ) : reject( err );
 		return cback ? cback( null, order ) : resolve( order );
 		/*=== d2r_end order_get_by_transaction_id ===*/
+	} );
+};
+
+/**
+ *
+ *
+ * @param req - the Request field [req]
+ * @param id - The order ID [req]
+ *
+ */
+export const order_get_full = ( req: ILRequest, id: string, cback: LCback = null ): Promise<OrderFull> => {
+	return new Promise( async ( resolve, reject ) => {
+		/*=== d2r_start order_get_full ===*/
+		const err = { message: "Order not found" };
+		const order: OrderFull = await _order_get_full( req, id );
+
+		if ( !order ) return cback ? cback( err ) : reject( err );
+
+		return cback ? cback( null, order ) : resolve( order );
+		/*=== d2r_end order_get_full ===*/
 	} );
 };
