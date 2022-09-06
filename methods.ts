@@ -51,7 +51,7 @@ const _order_get = async ( req: ILRequest, id?: string, code?: string, id_user?:
 		order = await collection_find_one_dict( req.db, COLL_ORDERS, { id_user, status: 'new' } );
 	}
 
-	if ( !order ) {
+	if ( !order && req?.user?.id ) {
 		order = { id: mkid( 'order' ), id_user: req.user.id, domain: domain.code, status: OrderStatus.new, code: mkcode() };
 		order = await collection_add( _coll_orders, order );
 	} else {
@@ -383,7 +383,7 @@ The order must be in status `new`
 export const get_order_cart = ( req: ILRequest, cback: LCback = null ): Promise<OrderFull> => {
 	return new Promise( async ( resolve, reject ) => {
 		/*=== d2r_start get_order_cart ===*/
-		const order: OrderFull = await _order_get( req, null, null, req.user.id, false );
+		const order: OrderFull = await _order_get( req, null, null, req?.user?.id, false );
 
 		// no order, or no order in 'new' means that the cart is empty
 		if ( !order || order.status != OrderStatus.new ) return cback ? cback( {} ) : resolve( {} );
