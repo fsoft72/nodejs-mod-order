@@ -51,8 +51,8 @@ const _order_get = async ( req: ILRequest, id?: string, code?: string, id_user?:
 		order = await collection_find_one_dict( req.db, COLL_ORDERS, { id_user, status: 'new' } );
 	}
 
-	if ( !order && req?.user?.id ) {
-		order = { id: mkid( 'order' ), id_user: req.user.id, domain: domain.code, status: OrderStatus.new, code: mkcode() };
+	if ( !order && id_user ) {
+		order = { id: mkid( 'order' ), id_user, domain: domain.code, status: OrderStatus.new, code: mkcode() };
 		order = await collection_add( _coll_orders, order );
 	} else {
 		if ( full ) user = await user_get( order.id_user );
