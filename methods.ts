@@ -106,8 +106,8 @@ const _add_prod = ( req: ILRequest, order: Order, prod_code: string, qnt: number
 		order_item.orig_total_vat = order_item.orig_price_vat * order_item.quant;
 
 		// In the order_item the "price_net/vat" is the price with discount
-		order_item.price_net = prod.curr_price_net;
-		order_item.price_vat = prod.curr_price_vat;
+		order_item.price_net = prod.curr_price_net ?? prod.price_net;
+		order_item.price_vat = prod.curr_price_vat ?? prod.price_vat;
 		order_item.total_net = order_item.price_net * order_item.quant;
 		order_item.total_vat = order_item.price_vat * order_item.quant;
 
