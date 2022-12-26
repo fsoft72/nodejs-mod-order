@@ -1,7 +1,6 @@
 
 import { ILRequest, ILResponse, LCback, ILiweConfig, ILError, ILiWE } from '../../liwe/types';
 import { mkid } from '../../liwe/utils';
-import { collection_add, collection_count, collection_count_dict, collection_find_all, collection_find_one, collection_find_one_dict, collection_find_all_dict, collection_del_one_dict, collection_del_all_dict, collection_init, prepare_filters } from '../../liwe/arangodb';
 import { DocumentCollection } from 'arangojs/collection';
 import { $l } from '../../liwe/locale';
 
@@ -31,6 +30,8 @@ import { date_format, keys_filter } from '../../liwe/utils';
 import { user_get } from '../user/methods';
 import { User } from '../user/types';
 import { challenge_check, keys_remove } from '../../liwe/utils';
+import { adb_del_one, adb_record_add, adb_find_one, adb_find_all, adb_query_all, adb_del_all } from '../../liwe/db/arango';
+import { collection_init } from '../../liwe/arangodb';
 
 const mkcode = () => {
 	const d = date_format( new Date(), 'yyyymmddHHMMSS' );
@@ -46,14 +47,14 @@ const _order_get = async ( req: ILRequest, id?: string, code?: string, id_user?:
 	if ( !id_user ) id_user = req?.user?.id || 'xxx';
 
 	if ( id || code ) {
-		order = await collection_find_one_dict( req.db, COLL_ORDERS, { id, code } );
+		order = await adb_find_one( req.db, COLL_ORDERS, { id, code } );
 	} else {
-		order = await collection_find_one_dict( req.db, COLL_ORDERS, { id_user, status: 'new' } );
+		order = await adb_find_one( req.db, COLL_ORDERS, { id_user, status: 'new' } );
 	}
 
 	if ( !order && id_user ) {
 		order = { id: mkid( 'order' ), id_user, domain: domain.code, status: OrderStatus.new, code: mkcode() };
-		order = await collection_add( _coll_orders, order );
+		order = await adb_record_add( req.db, COLL_ORDERS, order );
 	} else {
 		if ( full ) user = await user_get( order.id_user );
 		( order as any ).user = user;
@@ -69,7 +70,7 @@ const _order_get_full = async ( req: ILRequest, id?: string | null, code?: strin
 
 	if ( !order ) return null;
 
-	const items: OrderItem[] = await collection_find_all_dict( req.db, COLL_ORDER_ITEMS, { id_order: order.id }, OrderItemKeys );
+	const items: OrderItem[] = await adb_find_all( req.db, COLL_ORDER_ITEMS, { id_order: order.id }, OrderItemKeys );
 	order.items = items;
 	_calc_order_tots( order, items );
 
@@ -83,10 +84,10 @@ const _add_prod = ( req: ILRequest, order: Order, prod_code: string, qnt: number
 		let order_item: OrderItem = null;
 
 		if ( single ) {
-			await collection_del_one_dict( req.db, COLL_ORDER_ITEMS, { id_order: order.id, prod_code } );
+			await adb_del_one( req.db, COLL_ORDER_ITEMS, { id_order: order.id, prod_code } );
 			qnt = 1;
 		} else {
-			order_item = await collection_find_one_dict( req.db, COLL_ORDER_ITEMS, { id_order: order.id, prod_code } );
+			order_item = await adb_find_one( req.db, COLL_ORDER_ITEMS, { id_order: order.id, prod_code } );
 		}
 
 		if ( !order_item ) order_item = { id: mkid( 'oitem' ), domain: order.domain, quant: 0 };
@@ -116,7 +117,7 @@ const _add_prod = ( req: ILRequest, order: Order, prod_code: string, qnt: number
 
 		// console.log( "\n\n\n==== IMAGE: ", order_item.image );
 
-		await collection_add( _coll_order_items, order_item );
+		await adb_record_add( req.db, COLL_ORDER_ITEMS, order_item );
 		const items: OrderItem[] = await _calc_order_tots_fetch( req, order );
 
 		return resolve( { ...order, items } );
@@ -124,11 +125,11 @@ const _add_prod = ( req: ILRequest, order: Order, prod_code: string, qnt: number
 };
 
 const _calc_order_tots_fetch = async ( req: ILRequest, order: Order ) => {
-	const items: OrderItem[] = await collection_find_all_dict( req.db, COLL_ORDER_ITEMS, { id_order: order.id }, OrderItemKeys );
+	const items: OrderItem[] = await adb_find_all( req.db, COLL_ORDER_ITEMS, { id_order: order.id }, OrderItemKeys );
 
 	_calc_order_tots( order, items );
 
-	await collection_add( _coll_orders, order );
+	await adb_record_add( req.db, COLL_ORDERS, order );
 
 	return items;
 };
@@ -230,7 +231,7 @@ This function supports pagination.
 export const get_order_admin_list = ( req: ILRequest, skip: number = 0, rows: number = -1, cback: LCback = null ): Promise<Order[]> => {
 	return new Promise( async ( resolve, reject ) => {
 		/*=== d2r_start get_order_admin_list ===*/
-		const results: any[] = await collection_find_all( req.db, `
+		const results: any[] = await adb_query_all( req.db, `
 		FOR o IN orders
 			FILTER o.deleted == null
 			FOR u IN users
@@ -268,7 +269,7 @@ export const delete_order_admin_del = ( req: ILRequest, id: string, cback: LCbac
 
 		order.deleted = new Date();
 
-		await collection_add( _coll_orders, order );
+		await adb_record_add( req.db, COLL_ORDERS, order );
 
 		return cback ? cback( null, id ) : resolve( id );
 		/*=== d2r_end delete_order_admin_del ===*/
@@ -335,7 +336,7 @@ export const get_order_details = ( req: ILRequest, id: string, cback: LCback = n
 	return new Promise( async ( resolve, reject ) => {
 		/*=== d2r_start get_order_details ===*/
 		const order: OrderFull = await _order_get( req, id, null, null, true ) as any;
-		const items: OrderItem[] = await collection_find_all_dict( req.db, COLL_ORDER_ITEMS, { id_order: order.id }, OrderItemKeys );
+		const items: OrderItem[] = await adb_find_all( req.db, COLL_ORDER_ITEMS, { id_order: order.id }, OrderItemKeys );
 
 		keys_filter( order, OrderFullKeys );
 		order.items = items;
@@ -363,7 +364,7 @@ This function supports pagination.
 export const get_order_list = ( req: ILRequest, rows: number = -1, skip: number = 0, cback: LCback = null ): Promise<Order[]> => {
 	return new Promise( async ( resolve, reject ) => {
 		/*=== d2r_start get_order_list ===*/
-		const orders: Order[] = await collection_find_all_dict( req.db, COLL_ORDERS, { id_user: req.user.id }, OrderKeys, { skip, rows } );
+		const orders: Order[] = await adb_find_all( req.db, COLL_ORDERS, { id_user: req.user.id }, OrderKeys, { skip, rows } );
 
 		return cback ? cback( null, orders ) : resolve( orders );
 		/*=== d2r_end get_order_list ===*/
@@ -388,7 +389,7 @@ export const get_order_cart = ( req: ILRequest, cback: LCback = null ): Promise<
 		// no order, or no order in 'new' means that the cart is empty
 		if ( !order || order.status != OrderStatus.new ) return cback ? cback( {} ) : resolve( {} );
 
-		const items: OrderItem[] = await collection_find_all_dict( req.db, COLL_ORDER_ITEMS, { id_order: order.id }, OrderItemKeys );
+		const items: OrderItem[] = await adb_find_all( req.db, COLL_ORDER_ITEMS, { id_order: order.id }, OrderItemKeys );
 		order.items = items;
 		_calc_order_tots( order, items );
 		keys_filter( order, OrderFullKeys );
@@ -429,11 +430,11 @@ export const delete_order_item_del = ( req: ILRequest, id_order: string, id_item
 			return cback ? cback( err ) : reject( err );
 		}
 
-		await collection_del_one_dict( req.db, COLL_ORDER_ITEMS, { id: id_item } );
+		await adb_del_one( req.db, COLL_ORDER_ITEMS, { id: id_item } );
 
 		const items: OrderItem[] = await _calc_order_tots_fetch( req, order );
 
-		await collection_add( _coll_orders, order );
+		await adb_record_add( req.db, COLL_ORDERS, order );
 
 		order.items = items;
 
@@ -602,10 +603,10 @@ export const delete_order_admin_del_real = ( req: ILRequest, id: string, cback: 
 	return new Promise( async ( resolve, reject ) => {
 		/*=== d2r_start delete_order_admin_del_real ===*/
 		// deletes all order items
-		await collection_del_all_dict( req.db, COLL_ORDER_ITEMS, { id_order: id } );
+		await adb_del_all( req.db, COLL_ORDER_ITEMS, { id_order: id } );
 
 		// deletes the order
-		await collection_del_one_dict( req.db, COLL_ORDERS, { id } );
+		await adb_del_one( req.db, COLL_ORDERS, { id } );
 
 		return cback ? cback( null, id ) : resolve( id );
 		/*=== d2r_end delete_order_admin_del_real ===*/
@@ -691,8 +692,8 @@ export const order_transaction_start = ( req: ILRequest, id_order: string, payme
 		order.payment_mode = payment_mode;
 		order.transaction_id = transaction_id;
 
-		await collection_add( _coll_orders, order );
-		const log2 = await collection_add( _coll_order_log, log, false, OrderPaymentLogKeys );
+		await adb_record_add( req.db, COLL_ORDERS, order );
+		const log2 = await adb_record_add( req.db, COLL_ORDER_LOG, log, OrderPaymentLogKeys );
 
 		return cback ? cback( null, log2 ) : resolve( log2 );
 		/*=== d2r_end order_transaction_start ===*/
@@ -722,7 +723,7 @@ export const order_transaction_update = ( req: ILRequest, id_order: string, tran
 			data,
 		};
 
-		log = await collection_add( _coll_order_log, log, false, OrderPaymentLogKeys );
+		log = await adb_record_add( req.db, COLL_ORDER_LOG, log, OrderPaymentLogKeys );
 
 		return cback ? cback( null, log ) : resolve( log );
 		/*=== d2r_end order_transaction_update ===*/
@@ -747,7 +748,7 @@ export const order_payment_completed = ( req: ILRequest, id_order: string, cback
 		order.payment_status = OrderPaymentStatus.paid;
 		order.status = OrderStatus.ready;
 
-		order = await collection_add( _coll_orders, order, false, OrderKeys );
+		order = await adb_record_add( req.db, COLL_ORDERS, order, OrderKeys );
 
 		return cback ? cback( null, order ) : resolve( order );
 		/*=== d2r_end order_payment_completed ===*/
@@ -770,7 +771,7 @@ export const order_payment_cancelled = ( req: ILRequest, id_order: string, cback
 		if ( !order ) return cback ? cback( err ) : reject( err );
 
 		order.payment_status = OrderPaymentStatus.aborted;
-		order = await collection_add( _coll_orders, order, false, OrderKeys );
+		order = await adb_record_add( req.db, COLL_ORDERS, order, OrderKeys );
 
 		return cback ? cback( null, order ) : resolve( order );
 		/*=== d2r_end order_payment_cancelled ===*/
@@ -794,7 +795,7 @@ export const order_get_by_transaction_id = ( req: ILRequest, transaction_id?: st
 	return new Promise( async ( resolve, reject ) => {
 		/*=== d2r_start order_get_by_transaction_id ===*/
 		const err = { message: "Order not found" };
-		const order: Order = await collection_find_one_dict( req.db, COLL_ORDERS, { transaction_id, payment_mode }, OrderKeys );
+		const order: Order = await adb_find_one( req.db, COLL_ORDERS, { transaction_id, payment_mode }, OrderKeys );
 
 		// console.log( "===== TRANSACTION: ", order );
 
