@@ -30,8 +30,7 @@ import { date_format, keys_filter } from '../../liwe/utils';
 import { user_get } from '../user/methods';
 import { User } from '../user/types';
 import { challenge_check, keys_remove } from '../../liwe/utils';
-import { adb_del_one, adb_record_add, adb_find_one, adb_find_all, adb_query_all, adb_del_all } from '../../liwe/db/arango';
-import { collection_init } from '../../liwe/arangodb';
+import { adb_del_one, adb_record_add, adb_find_one, adb_find_all, adb_query_all, adb_del_all, adb_collection_init } from '../../liwe/db/arango';
 
 const mkcode = () => {
 	const d = date_format( new Date(), 'yyyymmddHHMMSS' );
@@ -625,7 +624,7 @@ export const order_db_init = ( liwe: ILiWE, cback: LCback = null ): Promise<bool
 	return new Promise( async ( resolve, reject ) => {
 		_liwe = liwe;
 
-		_coll_orders = await collection_init( liwe.db, COLL_ORDERS, [
+		_coll_orders = await adb_collection_init( liwe.db, COLL_ORDERS, [
 			{ type: "persistent", fields: [ "id" ], unique: true },
 			{ type: "persistent", fields: [ "domain" ], unique: false },
 			{ type: "persistent", fields: [ "code" ], unique: true },
@@ -640,14 +639,14 @@ export const order_db_init = ( liwe: ILiWE, cback: LCback = null ): Promise<bool
 			{ type: "persistent", fields: [ "deleted" ], unique: false },
 		], { drop: false } );
 
-		_coll_order_items = await collection_init( liwe.db, COLL_ORDER_ITEMS, [
+		_coll_order_items = await adb_collection_init( liwe.db, COLL_ORDER_ITEMS, [
 			{ type: "persistent", fields: [ "id" ], unique: true },
 			{ type: "persistent", fields: [ "domain" ], unique: false },
 			{ type: "persistent", fields: [ "id_order" ], unique: false },
 			{ type: "persistent", fields: [ "prod_code" ], unique: false },
 		], { drop: false } );
 
-		_coll_order_log = await collection_init( liwe.db, COLL_ORDER_LOG, [
+		_coll_order_log = await adb_collection_init( liwe.db, COLL_ORDER_LOG, [
 			{ type: "persistent", fields: [ "id" ], unique: true },
 			{ type: "persistent", fields: [ "id_order" ], unique: false },
 			{ type: "persistent", fields: [ "payment_mode" ], unique: false },
