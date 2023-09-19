@@ -880,18 +880,18 @@ export const order_get_full = ( req: ILRequest, id: string, cback: LCback = null
 };
 // }}}
 
-// {{{ order_add_product ( req: ILRequest, id_order: string, prod_code: string, qnt: number = 1, cback: LCBack = null ): Promise<OrderFull>
+// {{{ order_add_product ( req: ILRequest, id_order: string, id_product: string, qnt: number = 1, cback: LCBack = null ): Promise<OrderFull>
 /**
  *
  * @param req - the Request field [req]
  * @param id_order - The order ID [req]
- * @param prod_code - The product code [req]
+ * @param id_product - The product ID [req]
  * @param qnt - Quantity [opt]
  *
  * @return : OrderFull
  *
  */
-export const order_add_product = ( req: ILRequest, id_order: string, prod_code: string, qnt: number = 1, cback: LCback = null ): Promise<OrderFull> => {
+export const order_add_product = ( req: ILRequest, id_order: string, id_product: string, qnt: number = 1, cback: LCback = null ): Promise<OrderFull> => {
 	return new Promise( async ( resolve, reject ) => {
 		/*=== f2c_start order_add_product ===*/
 		const err = { message: "Order not found" };
@@ -904,9 +904,9 @@ export const order_add_product = ( req: ILRequest, id_order: string, prod_code: 
 			return cback ? cback( err ) : reject( err );
 		}
 
-		const prod = await product_get( req, prod_code );
+		const prod = await product_get( req, id_product );
 
-		const orderFull: OrderFull = await _add_prod( req, order, prod_code, qnt, prod.single );
+		const orderFull: OrderFull = await _add_prod( req, order, prod.code, qnt, prod.single );
 
 		keys_filter( orderFull, OrderFullKeys );
 
@@ -928,7 +928,6 @@ export const order_get_open = ( req: ILRequest, cback: LCback = null ): Promise<
 	return new Promise( async ( resolve, reject ) => {
 		/*=== f2c_start order_get_open ===*/
 		const order: OrderFull = await _order_get( req, null, null, req?.user?.id, false ) as OrderFull;
-
 		/*=== f2c_end order_get_open ===*/
 	} );
 };
