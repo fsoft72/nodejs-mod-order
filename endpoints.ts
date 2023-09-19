@@ -129,15 +129,14 @@ export const init = ( liwe: ILiWE ) => {
 	} );
 
 	app.post ( '/api/order/add', perms( [ "is-logged" ] ), ( req: ILRequest, res: ILResponse ) => {
-		const { prod_code, qnt, single, ___errors } = typed_dict( req.body, [
+		const { prod_code, qnt, ___errors } = typed_dict( req.body, [
 			{ name: "prod_code", type: "string", required: true },
-			{ name: "qnt", type: "number", required: true, default: 1 },
-			{ name: "single", type: "boolean" }
+			{ name: "qnt", type: "number", required: true, default: 1 }
 		] );
 
 		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
 
-		post_order_add ( req, prod_code, qnt, single, ( err: ILError, order: OrderFull ) => {
+		post_order_add ( req, prod_code, qnt, ( err: ILError, order: OrderFull ) => {
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { order } );

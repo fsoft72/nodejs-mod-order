@@ -112,11 +112,16 @@ const _order_get_full = async ( req: ILRequest, id?: string | null, code?: strin
  * @param single - A boolean indicating whether to add only one item of the product or not. Defaults to false.
  * @returns A Promise that resolves with the updated order object with all its items.
  */
-const _add_prod = ( req: ILRequest, order: Order, prod_code: string, qnt: number, single: boolean = false ): Promise<OrderFull> => {
+const _add_prod = ( req: ILRequest, order: Order, prod_code: string, qnt: number ): Promise<OrderFull> => {
 	return new Promise( async ( resolve, reject ) => {
+		const err = { message: 'Product not found' };
+		const prod: Product = await product_get( req, null, prod_code );
+
+		if ( !prod ) return reject( err );
+
 		let order_item: OrderItem = null;
 
-		if ( single ) {
+		if ( prod.single ) {
 			await adb_del_one( req.db, COLL_ORDER_ITEMS, { id_order: order.id, prod_code } );
 			qnt = 1;
 		} else {
@@ -125,14 +130,12 @@ const _add_prod = ( req: ILRequest, order: Order, prod_code: string, qnt: number
 
 		if ( !order_item ) order_item = { id: mkid( 'oitem' ), domain: order.domain, quant: 0 };
 
-		const prod: Product = await product_get( req, null, prod_code );
-		const err = { message: 'Product not found' };
-		if ( !prod ) return reject( err );
-
 		order_item.name = prod.name;
 		order_item.id_order = order.id;
 		order_item.prod_code = prod.code;
 		order_item.quant += qnt;
+		order_item.image = prod.image;
+
 		// Original price is saved to see discount
 		order_item.orig_price_net = prod.price_net;
 		order_item.orig_price_vat = prod.price_vat;
@@ -351,7 +354,7 @@ export const post_order_admin_tag = ( req: ILRequest, id: string, tags: string[]
 };
 // }}}
 
-// {{{ post_order_add ( req: ILRequest, prod_code: string, qnt: number, single: boolean = false, cback: LCBack = null ): Promise<OrderFull>
+// {{{ post_order_add ( req: ILRequest, prod_code: string, qnt: number, cback: LCBack = null ): Promise<OrderFull>
 /**
  *
  * Adds a product to the current order.
@@ -359,16 +362,15 @@ export const post_order_admin_tag = ( req: ILRequest, id: string, tags: string[]
  *
  * @param prod_code - Product Code [req]
  * @param qnt - Quantity to add [req]
- * @param single - If the product can be added only once to the order [opt]
  *
  * @return order: OrderFull
  *
  */
-export const post_order_add = ( req: ILRequest, prod_code: string, qnt: number, single: boolean = false, cback: LCback = null ): Promise<OrderFull> => {
+export const post_order_add = ( req: ILRequest, prod_code: string, qnt: number, cback: LCback = null ): Promise<OrderFull> => {
 	return new Promise( async ( resolve, reject ) => {
 		/*=== f2c_start post_order_add ===*/
 		let order: Order = await _order_get( req );
-		const orderFull: OrderFull = await _add_prod( req, order, prod_code, qnt, single );
+		const orderFull: OrderFull = await _add_prod( req, order, prod_code, qnt );
 
 		keys_filter( orderFull, OrderFullKeys );
 
@@ -906,7 +908,7 @@ export const order_add_product = ( req: ILRequest, id_order: string, id_product:
 
 		const prod = await product_get( req, id_product );
 
-		const orderFull: OrderFull = await _add_prod( req, order, prod.code, qnt, prod.single );
+		const orderFull: OrderFull = await _add_prod( req, order, prod.code, qnt );
 
 		keys_filter( orderFull, OrderFullKeys );
 
@@ -927,7 +929,9 @@ export const order_add_product = ( req: ILRequest, id_order: string, id_product:
 export const order_get_open = ( req: ILRequest, cback: LCback = null ): Promise<OrderFull> => {
 	return new Promise( async ( resolve, reject ) => {
 		/*=== f2c_start order_get_open ===*/
-		const order: OrderFull = await _order_get( req, null, null, req?.user?.id, false ) as OrderFull;
+		const order: OrderFull = await _order_get_full( req );
+
+		return cback ? cback( null, order ) : resolve( order );
 		/*=== f2c_end order_get_open ===*/
 	} );
 };
