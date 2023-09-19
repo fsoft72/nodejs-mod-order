@@ -130,6 +130,8 @@ const _add_prod = ( req: ILRequest, order: Order, prod_code: string, qnt: number
 
 		if ( !order_item ) order_item = { id: mkid( 'oitem' ), domain: order.domain, quant: 0 };
 
+		console.log( "=== ADD PROD: ", prod.code, prod.image );
+
 		order_item.name = prod.name;
 		order_item.id_order = order.id;
 		order_item.prod_code = prod.code;
@@ -149,9 +151,6 @@ const _add_prod = ( req: ILRequest, order: Order, prod_code: string, qnt: number
 		order_item.total_vat = order_item.price_vat * order_item.quant;
 
 		order_item.vat = prod.vat;
-		order_item.image = prod.image_url;
-
-		// console.log( "\n\n\n==== IMAGE: ", order_item.image );
 
 		await adb_record_add( req.db, COLL_ORDER_ITEMS, order_item );
 		const items: OrderItem[] = await _calc_order_tots_fetch( req, order );
@@ -528,8 +527,6 @@ export const post_order_transaction_start = ( req: ILRequest, id_order: string, 
 	return new Promise( async ( resolve, reject ) => {
 		/*=== f2c_start post_order_transaction_start ===*/
 		const err = { message: 'Invalid challenge' };
-
-		// console.log( "===== START: ", { id_order, payment_mode, transaction_id, session_id } );
 
 		if ( !challenge_check( challenge, [ id_order, transaction_id, session_id, payment_mode ] ) ) return cback ? cback( err ) : reject( err );
 

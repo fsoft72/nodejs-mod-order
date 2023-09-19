@@ -17,6 +17,8 @@ export enum OrderStatus {
 	ready = "ready",
 	/** The order is ready to be delivered */
 	to_deliver = "to_deliver",
+	/** The transaction has started */
+	transaction = "transaction",
 };
 
 export const OrderStatusObj = {
@@ -27,6 +29,7 @@ export const OrderStatusObj = {
 	new: "new",
 	ready: "ready",
 	to_deliver: "to_deliver",
+	transaction: "transaction",
 };
 
 /** OrderPaymentStatus - The status of order payment */
