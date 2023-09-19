@@ -72,7 +72,7 @@ const _order_get = async ( req: ILRequest, id?: string, code?: string, id_user?:
 		order = { id: mkid( 'order' ), id_user, domain: domain.code, status: OrderStatus.new, code: mkcode() };
 		order = await adb_record_add( req.db, COLL_ORDERS, order );
 	} else {
-		if ( full ) user = await user_get( order.id_user );
+		if ( full ) user = await user_get( order?.id_user ?? 'xxx' );
 		( order as any ).user = user;
 	}
 
@@ -876,6 +876,60 @@ export const order_get_full = ( req: ILRequest, id: string, cback: LCback = null
 
 		return cback ? cback( null, order ) : resolve( order );
 		/*=== f2c_end order_get_full ===*/
+	} );
+};
+// }}}
+
+// {{{ order_add_product ( req: ILRequest, id_order: string, prod_code: string, qnt: number = 1, cback: LCBack = null ): Promise<OrderFull>
+/**
+ *
+ * @param req - the Request field [req]
+ * @param id_order - The order ID [req]
+ * @param prod_code - The product code [req]
+ * @param qnt - Quantity [opt]
+ *
+ * @return : OrderFull
+ *
+ */
+export const order_add_product = ( req: ILRequest, id_order: string, prod_code: string, qnt: number = 1, cback: LCback = null ): Promise<OrderFull> => {
+	return new Promise( async ( resolve, reject ) => {
+		/*=== f2c_start order_add_product ===*/
+		const err = { message: "Order not found" };
+		let order: Order = await _order_get( req, id_order );
+
+		if ( !order ) return cback ? cback( err ) : reject( err );
+
+		if ( order.status != OrderStatus.new ) {
+			err.message = 'Order not modifiable';
+			return cback ? cback( err ) : reject( err );
+		}
+
+		const prod = await product_get( req, prod_code );
+
+		const orderFull: OrderFull = await _add_prod( req, order, prod_code, qnt, prod.single );
+
+		keys_filter( orderFull, OrderFullKeys );
+
+		return cback ? cback( null, orderFull ) : resolve( orderFull );
+		/*=== f2c_end order_add_product ===*/
+	} );
+};
+// }}}
+
+// {{{ order_get_open ( req: ILRequest, cback: LCBack = null ): Promise<OrderFull>
+/**
+ *
+ * @param req - the Request field [req]
+ *
+ * @return : OrderFull
+ *
+ */
+export const order_get_open = ( req: ILRequest, cback: LCback = null ): Promise<OrderFull> => {
+	return new Promise( async ( resolve, reject ) => {
+		/*=== f2c_start order_get_open ===*/
+		const order: OrderFull = await _order_get( req, null, null, req?.user?.id, false ) as OrderFull;
+
+		/*=== f2c_end order_get_open ===*/
 	} );
 };
 // }}}

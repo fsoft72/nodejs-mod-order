@@ -16,8 +16,8 @@ import {
 	post_order_add, post_order_admin_add, post_order_admin_tag, post_order_transaction_failed, post_order_transaction_start,
 	post_order_transaction_success, post_order_transaction_update,
 	// functions
-	order_db_init, order_get_by_transaction_id, order_get_full, order_payment_cancelled, order_payment_completed,
-	order_transaction_start, order_transaction_update,
+	order_add_product, order_db_init, order_get_by_transaction_id, order_get_full, order_get_open,
+	order_payment_cancelled, order_payment_completed, order_transaction_start, order_transaction_update,
 } from './methods';
 
 import {
