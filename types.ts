@@ -61,7 +61,7 @@ export const OrderPaymentStatusObj = {
 /** Order */
 export interface Order {
 	/** the main id field */
-	id: string;
+	id?: string;
 	/** The domain name */
 	domain?: string;
 	/** Unique order code */
@@ -93,12 +93,15 @@ export interface Order {
 	payment_status?: OrderPaymentStatus;
 	/** When the order has been deleted */
 	deleted?: Date;
+	/** Small user details */
 	user?: UserSmall;
+	/** Order user notes */
+	notes?: string;
 }
 
 export const OrderKeys = {
 	'id': { type: 'string', priv: false },
-	'domain': { type: 'string', priv: true },
+	'domain': { type: 'string', priv: false },
 	'code': { type: 'string', priv: false },
 	'id_user': { type: 'string', priv: false },
 	'session': { type: 'string', priv: false },
@@ -110,11 +113,12 @@ export const OrderKeys = {
 	'num_items': { type: 'number', priv: false },
 	'valid': { type: 'boolean', priv: false },
 	'payment_mode': { type: 'string', priv: false },
-	'transaction_id': { type: 'string', priv: true },
-	'session_id': { type: 'string', priv: true },
+	'transaction_id': { type: 'string', priv: false },
+	'session_id': { type: 'string', priv: false },
 	'payment_status': { type: 'OrderPaymentStatus', priv: false },
-	'deleted': { type: 'Date', priv: true },
+	'deleted': { type: 'Date', priv: false },
 	'user': { type: 'UserSmall', priv: false },
+	'notes': { type: 'string', priv: false },
 };
 
 /** OrderItem */
@@ -180,35 +184,35 @@ export interface OrderFull {
 	/** the main id field */
 	id: string;
 	/** Unique order code */
-	code?: string;
+	code: string;
 	/** The user id */
-	id_user?: string;
+	id_user: string;
 	/** The user that created the order */
-	user?: User;
+	user: User;
 	/** The order status [ 'new', 'open', 'confirmed', 'completed', 'canceled', 'aborted'] */
-	status?: OrderStatus;
+	status: OrderStatus;
 	/** Total order amount (vat excl) */
-	total_net?: number;
+	total_net: number;
 	/** Total order amount (vat incl) */
-	total_vat?: number;
+	total_vat: number;
 	/** Number of items */
-	num_items?: number;
+	num_items: number;
 	/** Number of items in the order */
-	items?: OrderItem[];
+	items: OrderItem[];
 	/** Flag T/F for the orders are valid */
-	valid?: boolean;
+	valid: boolean;
 	/** Payment mode */
 	payment?: string;
 	/** The full price of all elements */
-	original_total_vat?: number;
+	original_total_vat: number;
 	/** Total order discount */
-	discount?: number;
+	discount: number;
 	/** The payment mode used */
-	payment_mode?: string;
+	payment_mode: string;
 	/** The transaction id */
-	transaction_id?: string;
+	transaction_id: string;
 	/** Order payment status */
-	payment_status?: OrderPaymentStatus;
+	payment_status: OrderPaymentStatus;
 	/** Order Creation Date */
 	created?: Date;
 }

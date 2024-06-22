@@ -30,7 +30,7 @@ import { Product } from '../product/types';
 import { product_get } from '../product/methods';
 import { date_format, keys_filter, mkid } from '../../liwe/utils';
 import { user_get } from '../user/methods';
-import { User } from '../user/types';
+import { User, UserSmall } from '../user/types';
 import { challenge_check, keys_remove } from '../../liwe/utils';
 import { adb_del_one, adb_record_add, adb_find_one, adb_find_all, adb_query_all, adb_del_all, adb_collection_init } from '../../liwe/db/arango';
 
@@ -59,6 +59,7 @@ const _order_get = async ( req: ILRequest, id?: string, code?: string, id_user?:
 	let order: Order = null;
 	const domain = await system_domain_get_by_session( req );
 	let user: User = null;
+	let userSmall: UserSmall = null;
 
 	if ( !id_user ) id_user = req?.user?.id || 'xxx';
 
@@ -69,11 +70,19 @@ const _order_get = async ( req: ILRequest, id?: string, code?: string, id_user?:
 	}
 
 	if ( !order && id_user ) {
-		order = { id: mkid( 'order' ), id_user, domain: domain.code, status: OrderStatus.new, code: mkcode() };
+		user = await user_get( id_user );
+
+		userSmall = {
+			id: user.id,
+			domain: user.domain,
+			name: user.name,
+			lastname: user.lastname,
+			email: user.email,
+			username: user.username,
+		};
+
+		order = { id: mkid( 'order' ), id_user, domain: domain.code, status: OrderStatus.new, code: mkcode(), user: userSmall };
 		order = await adb_record_add( req.db, COLL_ORDERS, order );
-	} else {
-		if ( full ) user = await user_get( order?.id_user ?? 'xxx' );
-		( order as any ).user = user;
 	}
 
 	return order;
@@ -155,7 +164,7 @@ const _add_prod = ( req: ILRequest, order: Order, prod_code: string, qnt: number
 		await adb_record_add( req.db, COLL_ORDER_ITEMS, order_item );
 		const items: OrderItem[] = await _calc_order_tots_fetch( req, order );
 
-		return resolve( { ...order, items } );
+		return resolve( { ...order, items } as OrderFull );
 	} );
 };
 
@@ -512,7 +521,8 @@ export const delete_order_item_del = ( req: ILRequest, id_order: string, id_item
 // {{{ post_order_transaction_start ( req: ILRequest, id_order: string, challenge: string, payment_mode: string, transaction_id: string, session_id?: string, cback: LCBack = null ): Promise<OrderPaymentLog>
 /**
  *
- * The `challenge` parameter is a `MD5` hash created composing (`email` + `name` + `remote_secret_key` as set in the `data.json` config file under `security / remote`).
+ * The `challenge` parameter is a challenge hash created composing
+ * `id_order`, `transaction_id`, `session_id`, `payment_mode` as set in the `data.json` config file under `security / remote`).
  *
  * @param id_order - The order ID [req]
  * @param challenge - The challenge verification code [req]
@@ -685,6 +695,40 @@ export const delete_order_admin_del_real = ( req: ILRequest, id: string, cback: 
 
 		return cback ? cback( null, id ) : resolve( id );
 		/*=== f2c_end delete_order_admin_del_real ===*/
+	} );
+};
+// }}}
+
+// {{{ post_order_notes_add ( req: ILRequest, id: string, notes: string, cback: LCBack = null ): Promise<Order>
+/**
+ *
+ * Only the current user that owns the order can add notes to the order itself.
+ *
+ * @param id - Order ID [req]
+ * @param notes - Order notes [req]
+ *
+ * @return order: Order
+ *
+ */
+export const post_order_notes_add = ( req: ILRequest, id: string, notes: string, cback: LCback = null ): Promise<Order> => {
+	return new Promise( async ( resolve, reject ) => {
+		/*=== f2c_start post_order_notes_add ===*/
+		const err: ILError = { message: 'Order not found' };
+		const order: Order = await _order_get( req, id );
+
+		if ( !order ) return cback ? cback( err ) : reject( err );
+
+		if ( order.id_user != req.user.id ) {
+			err.message = 'You are not the owner of this order';
+			return cback ? cback( err ) : reject( err );
+		}
+
+		order.notes = notes;
+
+		await adb_record_add( req.db, COLL_ORDERS, order, OrderKeys );
+
+		return cback ? cback( null, order ) : resolve( order );
+		/*=== f2c_end post_order_notes_add ===*/
 	} );
 };
 // }}}

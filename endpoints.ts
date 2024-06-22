@@ -13,8 +13,8 @@ import {
 	// endpoints function
 	delete_order_admin_del, delete_order_admin_del_real, delete_order_item_del, get_order_admin_details, get_order_admin_list,
 	get_order_cart, get_order_details, get_order_list, patch_order_admin_fields, patch_order_admin_update,
-	post_order_add, post_order_admin_add, post_order_admin_tag, post_order_transaction_failed, post_order_transaction_start,
-	post_order_transaction_success, post_order_transaction_update,
+	post_order_add, post_order_admin_add, post_order_admin_tag, post_order_notes_add, post_order_transaction_failed,
+	post_order_transaction_start, post_order_transaction_success, post_order_transaction_update,
 	// functions
 	order_add_product, order_db_init, order_get_by_transaction_id, order_get_full, order_get_open,
 	order_payment_cancelled, order_payment_completed, order_transaction_start, order_transaction_update,
@@ -293,6 +293,21 @@ export const init = ( liwe: ILiWE ) => {
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { id } );
+		} );
+	} );
+
+	app.post ( '/api/order/notes/add', perms( [ "is-logged" ] ), ( req: ILRequest, res: ILResponse ) => {
+		const { id, notes, ___errors } = typed_dict( req.body, [
+			{ name: "id", type: "string", required: true },
+			{ name: "notes", type: "string", required: true }
+		] );
+
+		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
+
+		post_order_notes_add ( req, id, notes, ( err: ILError, order: Order ) => {
+			if ( err ) return send_error( res, err );
+
+			send_ok( res, { order } );
 		} );
 	} );
 
