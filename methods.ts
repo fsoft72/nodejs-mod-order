@@ -33,6 +33,8 @@ import { user_get } from '../user/methods';
 import { User, UserSmall } from '../user/types';
 import { challenge_check, keys_remove } from '../../liwe/utils';
 import { adb_del_one, adb_record_add, adb_find_one, adb_find_all, adb_query_all, adb_del_all, adb_collection_init } from '../../liwe/db/arango';
+import { ORDER_EVENT_PAID } from './events';
+import { liwe_event_emit } from '../../liwe/events';
 
 
 /**
@@ -63,13 +65,18 @@ const _order_get = async ( req: ILRequest, id?: string, code?: string, id_user?:
 
 	if ( !id_user ) id_user = req?.user?.id || 'xxx';
 
-	if ( id || code ) {
-		order = await adb_find_one( req.db, COLL_ORDERS, { id, code } );
-	} else {
+	console.log( "=== ORDER GET: ", { id_user, id, code } );
+
+	if ( id_user && id_user != 'xxx' && id_user.length > 4 ) {
 		order = await adb_find_one( req.db, COLL_ORDERS, { id_user, status: OrderStatus.new } );
+	} else {
+		if ( id || code ) {
+			order = await adb_find_one( req.db, COLL_ORDERS, { id, code } );
+		}
 	}
 
-	if ( !order && id_user ) {
+
+	if ( !order && id_user && id_user != 'xxx' ) {
 		user = await user_get( id_user );
 
 		userSmall = {
@@ -835,6 +842,8 @@ export const order_payment_completed = ( req: ILRequest, id_order: string, cback
 		order.status = OrderStatus.ready;
 
 		order = await adb_record_add( req.db, COLL_ORDERS, order, OrderKeys );
+
+		await liwe_event_emit( req, ORDER_EVENT_PAID, order );
 
 		return cback ? cback( null, order ) : resolve( order );
 		/*=== f2c_end order_payment_completed ===*/
