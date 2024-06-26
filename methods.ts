@@ -67,13 +67,17 @@ const _order_get = async ( req: ILRequest, id?: string, code?: string, id_user?:
 
 	console.log( "=== ORDER GET: ", { id_user, id, code } );
 
-	if ( id_user && id_user != 'xxx' && id_user.length > 4 ) {
-		order = await adb_find_one( req.db, COLL_ORDERS, { id_user, status: OrderStatus.new } );
-	} else {
-		if ( id || code ) {
-			order = await adb_find_one( req.db, COLL_ORDERS, { id, code } );
-		}
+	if ( id || code ) {
+		order = await adb_find_one( req.db, COLL_ORDERS, { id, code } );
 	}
+
+	if ( !order && id_user && id_user != 'xxx' && id_user.length > 4 ) {
+		order = await adb_find_one( req.db, COLL_ORDERS, { id_user, status: OrderStatus.new } );
+	}
+
+
+
+
 
 
 	if ( !order && id_user && id_user != 'xxx' ) {
