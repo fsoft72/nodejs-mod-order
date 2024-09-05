@@ -214,7 +214,9 @@ export interface OrderFull {
 	/** Order payment status */
 	payment_status: OrderPaymentStatus;
 	/** Order Creation Date */
-	created?: Date;
+	created: Date;
+	/** Order notes */
+	notes: string;
 }
 
 export const OrderFullKeys = {
@@ -229,13 +231,13 @@ export const OrderFullKeys = {
 	'items': { type: 'OrderItem[]', priv: false },
 	'valid': { type: 'boolean', priv: false },
 	'payment': { type: 'string', priv: false },
-	'notes': { type: 'string', priv: false },
 	'original_total_vat': { type: 'number', priv: false },
 	'discount': { type: 'number', priv: false },
 	'payment_mode': { type: 'string', priv: false },
 	'transaction_id': { type: 'string', priv: false },
 	'payment_status': { type: 'OrderPaymentStatus', priv: false },
 	'created': { type: 'Date', priv: false },
+	'notes': { type: 'string', priv: false },
 };
 
 /** OrderPaymentLog */

@@ -129,10 +129,10 @@ const _order_get_full = async ( req: ILRequest, id?: string | null, code?: strin
  * @param order - The order object to which the product will be added.
  * @param prod_code - The product code of the product to be added.
  * @param qnt - The quantity of the product to be added.
- * @param single - A boolean indicating whether to add only one item of the product or not. Defaults to false.
+ * @param overwrite - Whether to overwrite the quantity of the product if it already exists in the order. Default is false.
  * @returns A Promise that resolves with the updated order object with all its items.
  */
-const _add_prod = ( req: ILRequest, order: Order, prod_code: string, qnt: number ): Promise<OrderFull> => {
+const _add_prod = ( req: ILRequest, order: Order, prod_code: string, qnt: number, overwrite = false ): Promise<OrderFull> => {
 	return new Promise( async ( resolve, reject ) => {
 		const err = { message: 'Product not found' };
 		const prod: Product = await product_get( req, null, prod_code );
@@ -140,6 +140,10 @@ const _add_prod = ( req: ILRequest, order: Order, prod_code: string, qnt: number
 		if ( !prod ) return reject( err );
 
 		let order_item: OrderItem = null;
+
+		if ( overwrite ) {
+			await adb_del_one( req.db, COLL_ORDER_ITEMS, { id_order: order.id, prod_code } );
+		}
 
 		if ( prod.single ) {
 			await adb_del_one( req.db, COLL_ORDER_ITEMS, { id_order: order.id, prod_code } );
@@ -373,7 +377,7 @@ export const post_order_admin_tag = ( req: ILRequest, id: string, tags: string[]
 };
 // }}}
 
-// {{{ post_order_add ( req: ILRequest, prod_code: string, qnt: number, cback: LCBack = null ): Promise<OrderFull>
+// {{{ post_order_add ( req: ILRequest, prod_code: string, qnt: number, overwrite?: boolean, cback: LCBack = null ): Promise<OrderFull>
 /**
  *
  * Adds a product to the current order.
@@ -381,15 +385,16 @@ export const post_order_admin_tag = ( req: ILRequest, id: string, tags: string[]
  *
  * @param prod_code - Product Code [req]
  * @param qnt - Quantity to add [req]
+ * @param overwrite - If set to `true` overwrites the quantity [opt]
  *
  * @return order: OrderFull
  *
  */
-export const post_order_add = ( req: ILRequest, prod_code: string, qnt: number, cback: LCback = null ): Promise<OrderFull> => {
+export const post_order_add = ( req: ILRequest, prod_code: string, qnt: number, overwrite?: boolean, cback: LCback = null ): Promise<OrderFull> => {
 	return new Promise( async ( resolve, reject ) => {
 		/*=== f2c_start post_order_add ===*/
 		let order: Order = await _order_get( req );
-		const orderFull: OrderFull = await _add_prod( req, order, prod_code, qnt );
+		const orderFull: OrderFull = await _add_prod( req, order, prod_code, qnt, overwrite );
 
 		keys_filter( orderFull, OrderFullKeys );
 
