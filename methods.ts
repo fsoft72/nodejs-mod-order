@@ -996,6 +996,34 @@ export const order_get_open = ( req: ILRequest, cback: LCback = null ): Promise<
 };
 // }}}
 
+// {{{ order_set_status ( req: any, id: string, status: any, cback: LCBack = null ): Promise<Order>
+/**
+ *
+ * @param req -  [req]
+ * @param id - Order ID [req]
+ * @param status - The order status [req]
+ *
+ * @return : Order
+ *
+ */
+export const order_set_status = ( req: any, id: string, status: any, cback: LCback = null ): Promise<Order> => {
+	return new Promise( async ( resolve, reject ) => {
+		/*=== f2c_start order_set_status ===*/
+		const err = { message: 'Order not found' };
+		const order: Order = await _order_get( null, id );
+
+		if ( !order ) return cback ? cback( err ) : reject( err );
+
+		order.status = status;
+
+		await adb_record_add( req.db, COLL_ORDERS, order, OrderKeys );
+
+		return cback ? cback( null, order ) : resolve( order );
+		/*=== f2c_end order_set_status ===*/
+	} );
+};
+// }}}
+
 // {{{ order_db_init ( liwe: ILiWE, cback: LCBack = null ): Promise<boolean>
 /**
  *
