@@ -6,6 +6,7 @@
 
 const permissions = {
 	"order.add": "User can add / modify / delete an order",
+	"order.address_update": "The user can update delivery address of any order",
 };
 
 export default permissions;

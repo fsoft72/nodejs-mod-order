@@ -97,6 +97,8 @@ export interface Order {
 	user?: UserSmall;
 	/** Order user notes */
 	notes?: string;
+	/** The delivery address */
+	address?: any;
 }
 
 export const OrderKeys = {
@@ -119,6 +121,7 @@ export const OrderKeys = {
 	'deleted': { type: 'Date', priv: false },
 	'user': { type: 'UserSmall', priv: false },
 	'notes': { type: 'string', priv: false },
+	'address': { type: 'any', priv: false },
 };
 
 /** OrderItem */
@@ -217,6 +220,8 @@ export interface OrderFull {
 	created: Date;
 	/** Order notes */
 	notes: string;
+	/** Delivery address */
+	address: any;
 }
 
 export const OrderFullKeys = {
@@ -238,6 +243,7 @@ export const OrderFullKeys = {
 	'payment_status': { type: 'OrderPaymentStatus', priv: false },
 	'created': { type: 'Date', priv: false },
 	'notes': { type: 'string', priv: false },
+	'address': { type: 'any', priv: false },
 };
 
 /** OrderPaymentLog */

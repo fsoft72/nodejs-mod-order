@@ -35,6 +35,7 @@ import { challenge_check, keys_remove } from '../../liwe/utils';
 import { adb_del_one, adb_record_add, adb_find_one, adb_find_all, adb_query_all, adb_del_all, adb_collection_init } from '../../liwe/db/arango';
 import { ORDER_EVENT_PAID } from './events';
 import { liwe_event_emit } from '../../liwe/events';
+import { perm_available } from '../../liwe/auth';
 
 
 /**
@@ -68,17 +69,12 @@ const _order_get = async ( req: ILRequest, id?: string, code?: string, id_user?:
 	console.log( "=== ORDER GET: ", { id_user, id, code } );
 
 	if ( id || code ) {
-		order = await adb_find_one( req.db, COLL_ORDERS, { id, code } );
+		order = await adb_find_one( _liwe.db, COLL_ORDERS, { id, code } );
 	}
 
 	if ( !order && id_user && id_user != 'xxx' && id_user.length > 4 ) {
 		order = await adb_find_one( req.db, COLL_ORDERS, { id_user, status: OrderStatus.new } );
 	}
-
-
-
-
-
 
 	if ( !order && id_user && id_user != 'xxx' ) {
 		user = await user_get( id_user );
@@ -554,6 +550,8 @@ export const post_order_transaction_start = ( req: ILRequest, id_order: string, 
 		/*=== f2c_start post_order_transaction_start ===*/
 		const err = { message: 'Invalid challenge' };
 
+		console.log( "=== ORDER TRANSACTION START: ", id_order );
+
 		if ( !challenge_check( challenge, [ id_order, transaction_id, session_id, payment_mode ] ) ) return cback ? cback( err ) : reject( err );
 
 		const order = await order_transaction_start( req, id_order, payment_mode, transaction_id, session_id, 'transaction.start' );
@@ -715,22 +713,24 @@ export const delete_order_admin_del_real = ( req: ILRequest, id: string, cback: 
 };
 // }}}
 
-// {{{ post_order_notes_add ( req: ILRequest, id: string, notes: string, cback: LCBack = null ): Promise<Order>
+// {{{ post_order_notes_add ( req: ILRequest, notes: string, id?: string, code?: string, cback: LCBack = null ): Promise<Order>
 /**
  *
  * Only the current user that owns the order can add notes to the order itself.
+ * The order can be referenced by `id` or `code`
  *
- * @param id - Order ID [req]
  * @param notes - Order notes [req]
+ * @param id - Order ID [opt]
+ * @param code - Order code [opt]
  *
  * @return order: Order
  *
  */
-export const post_order_notes_add = ( req: ILRequest, id: string, notes: string, cback: LCback = null ): Promise<Order> => {
+export const post_order_notes_add = ( req: ILRequest, notes: string, id?: string, code?: string, cback: LCback = null ): Promise<Order> => {
 	return new Promise( async ( resolve, reject ) => {
 		/*=== f2c_start post_order_notes_add ===*/
 		const err: ILError = { message: 'Order not found' };
-		const order: Order = await _order_get( req, id );
+		const order: Order = await _order_get( req, id, code );
 
 		if ( !order ) return cback ? cback( err ) : reject( err );
 
@@ -745,6 +745,72 @@ export const post_order_notes_add = ( req: ILRequest, id: string, notes: string,
 
 		return cback ? cback( null, order ) : resolve( order );
 		/*=== f2c_end post_order_notes_add ===*/
+	} );
+};
+// }}}
+
+// {{{ post_order_set_delivery_address ( req: ILRequest, id: string, address: any, cback: LCBack = null ): Promise<Order>
+/**
+ *
+ * Set inside the `order` structure the delivery address.
+ * Only the order owner can call this (or admin)
+ *
+ * @param id - Order ID [req]
+ * @param address - Delivery address [req]
+ *
+ * @return order: Order
+ *
+ */
+export const post_order_set_delivery_address = ( req: ILRequest, id: string, address: any, cback: LCback = null ): Promise<Order> => {
+	return new Promise( async ( resolve, reject ) => {
+		/*=== f2c_start post_order_set_delivery_address ===*/
+		const err: ILError = { message: 'Order not found' };
+		let order: Order = await _order_get( req, id );
+
+		if ( !order ) return cback ? cback( err ) : reject( err );
+
+		console.log( "=== OWNER: order.id_user: ", order.id_user, " req.user.id: ", req.user.id );
+
+		if ( ( order.id_user != req.user.id ) || ( perm_available( req.user, [ 'order.address_update' ] ) == false ) ) {
+			err.message = 'You are not the owner of this order';
+			return cback ? cback( err ) : reject( err );
+		}
+
+		order.address = address;
+
+		order = await adb_record_add( req.db, COLL_ORDERS, order, OrderKeys );
+
+		return cback ? cback( null, order ) : resolve( order );
+		/*=== f2c_end post_order_set_delivery_address ===*/
+	} );
+};
+// }}}
+
+// {{{ get_order_get ( req: ILRequest, challenge: string, id?: string, code?: string, cback: LCBack = null ): Promise<Order>
+/**
+ *
+ * Return basic data by `id` or `code`
+ * The `challenge` field is mandatory
+ * Challenge is made by:  `id+code+secret`
+ *
+ * @param challenge - The challenge [req]
+ * @param id - The order ID [opt]
+ * @param code - The order code [opt]
+ *
+ * @return order: Order
+ *
+ */
+export const get_order_get = ( req: ILRequest, challenge: string, id?: string, code?: string, cback: LCback = null ): Promise<Order> => {
+	return new Promise( async ( resolve, reject ) => {
+		/*=== f2c_start get_order_get ===*/
+		const err = { message: 'Invalid challenge' };
+
+		if ( !challenge_check( challenge, [ id, code ] ) ) return cback ? cback( err ) : reject( err );
+
+		const order: Order = await _order_get( req, id, code );
+
+		return cback ? cback( null, order ) : resolve( order );
+		/*=== f2c_end get_order_get ===*/
 	} );
 };
 // }}}
