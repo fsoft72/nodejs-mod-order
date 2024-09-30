@@ -815,6 +815,38 @@ export const get_order_get = ( req: ILRequest, challenge: string, id?: string, c
 };
 // }}}
 
+// {{{ patch_order_change_status ( req: ILRequest, id: string, status: string, cback: LCBack = null ): Promise<Order>
+/**
+ *
+ * @param id - Order ID [req]
+ * @param status - New order status [req]
+ *
+ * @return order: Order
+ *
+ */
+export const patch_order_change_status = ( req: ILRequest, id: string, status: string, cback: LCback = null ): Promise<Order> => {
+	return new Promise( async ( resolve, reject ) => {
+		/*=== f2c_start patch_order_change_status ===*/
+		const err = { message: 'Order not found' };
+		let order: Order = await _order_get( req, id );
+
+		if ( !order ) return cback ? cback( err ) : reject( err );
+
+		if ( status in OrderStatus == false ) {
+			err.message = 'Invalid status';
+			return cback ? cback( err ) : reject( err );
+		}
+
+		order.status = status as OrderStatus;
+
+		order = await adb_record_add( req.db, COLL_ORDERS, order, OrderKeys );
+
+		return cback ? cback( null, order ) : resolve( order );
+		/*=== f2c_end patch_order_change_status ===*/
+	} );
+};
+// }}}
+
 // {{{ order_transaction_start ( req: ILRequest, id_order: string, payment_mode: string, transaction_id: string, session_id?: string, event_name?: string, data?: any, cback: LCBack = null ): Promise<OrderPaymentLog>
 /**
  *
