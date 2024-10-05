@@ -805,7 +805,10 @@ export const get_order_get = ( req: ILRequest, challenge: string, id?: string, c
 		/*=== f2c_start get_order_get ===*/
 		const err = { message: 'Invalid challenge' };
 
-		if ( !challenge_check( challenge, [ id, code ] ) ) return cback ? cback( err ) : reject( err );
+		if ( !challenge_check( challenge, [ id, code ] ) ) {
+			console.error( "=== ERROR: Invalid challenge" );
+			return cback ? cback( err ) : reject( err );
+		}
 
 		const order: Order = await _order_get( req, id, code );
 
