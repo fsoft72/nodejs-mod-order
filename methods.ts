@@ -771,7 +771,7 @@ export const post_order_set_delivery_address = ( req: ILRequest, id: string, add
 
 		console.log( "=== OWNER: order.id_user: ", order.id_user, " req.user.id: ", req.user.id );
 
-		if ( ( order.id_user != req.user.id ) || ( perm_available( req.user, [ 'order.address_update' ] ) == false ) ) {
+		if ( ( order.id_user != req.user.id ) && ( perm_available( req.user, [ 'order.address_update' ] ) == false ) ) {
 			err.message = 'You are not the owner of this order';
 			return cback ? cback( err ) : reject( err );
 		}
