@@ -617,16 +617,21 @@ export const post_order_transaction_success = ( req: ILRequest, challenge: strin
 		/*=== f2c_start post_order_transaction_success ===*/
 		const err = { message: 'Invalid challenge' };
 
+		console.log( "=== TRANSACTION SUCCESS 01: ", { transaction_id, session_id, payment_mode } );
 		if ( !challenge_check( challenge, [ transaction_id, session_id, payment_mode ] ) ) return cback ? cback( err ) : reject( err );
 
 		let order: Order = await order_get_by_transaction_id( req, transaction_id, session_id, payment_mode );
+		console.log( "=== TRANSACTION SUCCESS 02: ", { order } );
 
 		if ( !order ) {
 			err.message = 'Order not found';
 			return cback ? cback( err ) : reject( err );
 		}
 
+		console.log( "=== TRANSACTION PAYMENT COMPLETE: ", order.id );
 		order = await order_payment_completed( req, order.id );
+
+		console.log( "=== TRANSACTION END" );
 
 		return cback ? cback( null, order ) : resolve( order );
 		/*=== f2c_end post_order_transaction_success ===*/
@@ -882,7 +887,7 @@ export const order_transaction_start = ( req: ILRequest, id_order: string, payme
 
 		order.payment_status = OrderPaymentStatus.in_pay;
 		order.payment_mode = payment_mode;
-		order.transaction_id = transaction_id;
+		order.transaction_id = log.id;
 
 		await adb_record_add( req.db, COLL_ORDERS, order );
 		const log2 = await adb_record_add( req.db, COLL_ORDER_LOG, log, OrderPaymentLogKeys );
