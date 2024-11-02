@@ -170,6 +170,12 @@ const _add_prod = ( req: ILRequest, order: Order, prod_code: string, qnt: number
 		order_item.total_net = order_item.price_net * order_item.quant;
 		order_item.total_vat = order_item.price_vat * order_item.quant;
 
+		// normalize price_vat, price_net, total_vat, total_net to 2 decimals
+		order_item.price_net = Math.round( order_item.price_net * 100 ) / 100;
+		order_item.price_vat = Math.round( order_item.price_vat * 100 ) / 100;
+		order_item.total_net = Math.round( order_item.total_net * 100 ) / 100;
+		order_item.total_vat = Math.round( order_item.total_vat * 100 ) / 100;
+
 		order_item.vat = prod.vat;
 
 		await adb_record_add( req.db, COLL_ORDER_ITEMS, order_item );
@@ -390,11 +396,16 @@ export const post_order_add = ( req: ILRequest, prod_code: string, qnt: number, 
 	return new Promise( async ( resolve, reject ) => {
 		/*=== f2c_start post_order_add ===*/
 		let order: Order = await _order_get( req );
-		const orderFull: OrderFull = await _add_prod( req, order, prod_code, qnt, overwrite );
+		try {
+			const orderFull: OrderFull = await _add_prod( req, order, prod_code, qnt, overwrite );
 
-		keys_filter( orderFull, OrderFullKeys );
+			keys_filter( orderFull, OrderFullKeys );
 
-		return cback ? cback( null, orderFull ) : resolve( orderFull );
+			return cback ? cback( null, orderFull ) : resolve( orderFull );
+		} catch ( e ) {
+			console.error( "=== ERROR: order_add: ", e );
+			return cback ? cback( e ) : reject( e );
+		}
 		/*=== f2c_end post_order_add ===*/
 	} );
 };

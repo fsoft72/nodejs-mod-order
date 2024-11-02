@@ -11,16 +11,16 @@
 			"url": "/api/order/add",
 			"auth": true,
 			"params": {
-				"prod_code": "prod001",
+				"prod_code": "CIOCOCCO400",
 				"qnt": 5
 			},
 			"tests": [
 				{
 					"field": "order.total_net",
-					"value": 500
+					"value": 60.45
 				},
 				{
-					"field": "order.items.[prod_code=prod001].quant",
+					"field": "order.items.[prod_code=CIOCOCCO400].quant",
 					"value": 5
 				}
 			],
@@ -36,16 +36,16 @@
 			"url": "/api/order/add",
 			"auth": true,
 			"params": {
-				"prod_code": "prod001",
+				"prod_code": "CIOCOCCO400",
 				"qnt": 1
 			},
 			"tests": [
 				{
 					"field": "order.total_net",
-					"value": 600
+					"value": 72.54
 				},
 				{
-					"field": "order.items.[prod_code=prod001].quant",
+					"field": "order.items.[prod_code=CIOCOCCO400].quant",
 					"value": 6
 				}
 			]
@@ -60,11 +60,11 @@
 			"tests": [
 				{
 					"field": "order.total_net",
-					"value": 600
+					"value": 72.54
 				},
 				{
 					"field": "order.items.[0].prod_code",
-					"value": "prod001"
+					"value": "CIOCOCCO400"
 				}
 			]
 		},

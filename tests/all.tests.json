@@ -6,7 +6,7 @@
 	"actions": [
 		{
 			"action": "include",
-			"filename": "product.tests.json",
+			"filename": "../../product/tests/market/all.tests.json",
 			"exec": true
 		},
 		{
