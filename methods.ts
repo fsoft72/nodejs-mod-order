@@ -27,7 +27,7 @@ const COLL_ORDER_LOG = "order_log";
 /*=== f2c_start __file_header === */
 import { system_domain_get_by_session } from '../system/methods';
 import { Product } from '../product/types';
-import { product_get } from '../product/methods';
+import { product_get, product_stock_add } from '../product/methods';
 import { date_format, keys_filter, mkid } from '../../liwe/utils';
 import { user_get } from '../user/methods';
 import { User, UserSmall } from '../user/types';
@@ -227,6 +227,17 @@ const _calc_order_tots = ( order: Order, items: OrderItem[] ) => {
 	order.original_total_vat = orig_tot_vat;
 	// calc discount % from original_total_vat and total_vat, as integer
 	order.discount = Math.round( ( orig_tot_vat - tot_vat ) / orig_tot_vat * 100 );
+};
+
+const _stock_scale = async ( req: ILRequest, order: Order ) => {
+	const items: OrderItem[] = await adb_find_all( req.db, COLL_ORDER_ITEMS, { id_order: order.id }, OrderItemKeys );
+
+	for ( const item of items ) {
+		console.log( "=== SCALE: ", item );
+		await product_stock_add( req as any, item.prod_code, -item.quant );
+	}
+
+	return true;
 };
 /*=== f2c_end __file_header ===*/
 
@@ -968,6 +979,9 @@ export const order_payment_completed = ( req: ILRequest, id_order: string, cback
 		order.status = OrderStatus.paid;
 
 		order = await adb_record_add( req.db, COLL_ORDERS, order, OrderKeys );
+
+		// scale the stock
+		await _stock_scale( req, order );
 
 		await liwe_event_emit( req, ORDER_EVENT_PAID, order );
 
