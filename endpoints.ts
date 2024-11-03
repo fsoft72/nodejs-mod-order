@@ -49,7 +49,6 @@ export const init = ( liwe: ILiWE ) => {
 		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
 
 		post_order_admin_add ( req, prod_code, qnt, id_user, ( err: ILError, order: Order ) => {
-			if ( err?.quiet ) return;
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { order } );
@@ -65,7 +64,6 @@ export const init = ( liwe: ILiWE ) => {
 		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
 
 		patch_order_admin_update ( req, id, name, ( err: ILError, order: Order ) => {
-			if ( err?.quiet ) return;
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { order } );
@@ -81,7 +79,6 @@ export const init = ( liwe: ILiWE ) => {
 		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
 
 		patch_order_admin_fields ( req, id, data, ( err: ILError, order: Order ) => {
-			if ( err?.quiet ) return;
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { order } );
@@ -97,7 +94,6 @@ export const init = ( liwe: ILiWE ) => {
 		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
 
 		get_order_admin_list ( req, skip, rows, ( err: ILError, orders: Order ) => {
-			if ( err?.quiet ) return;
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { orders } );
@@ -112,7 +108,6 @@ export const init = ( liwe: ILiWE ) => {
 		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
 
 		delete_order_admin_del ( req, id, ( err: ILError, id: string ) => {
-			if ( err?.quiet ) return;
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { id } );
@@ -128,7 +123,6 @@ export const init = ( liwe: ILiWE ) => {
 		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
 
 		post_order_admin_tag ( req, id, tags, ( err: ILError, order: Order ) => {
-			if ( err?.quiet ) return;
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { order } );
@@ -145,7 +139,6 @@ export const init = ( liwe: ILiWE ) => {
 		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
 
 		post_order_add ( req, prod_code, qnt, overwrite, ( err: ILError, order: OrderFull ) => {
-			if ( err?.quiet ) return;
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { order } );
@@ -160,7 +153,6 @@ export const init = ( liwe: ILiWE ) => {
 		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
 
 		get_order_details ( req, id, ( err: ILError, order: OrderFull ) => {
-			if ( err?.quiet ) return;
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { order } );
@@ -176,7 +168,6 @@ export const init = ( liwe: ILiWE ) => {
 		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
 
 		get_order_list ( req, rows, skip, ( err: ILError, orders: Order ) => {
-			if ( err?.quiet ) return;
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { orders } );
@@ -187,7 +178,6 @@ export const init = ( liwe: ILiWE ) => {
 		
 
 		get_order_cart ( req, ( err: ILError, order: OrderFull ) => {
-			if ( err?.quiet ) return;
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { order } );
@@ -203,7 +193,6 @@ export const init = ( liwe: ILiWE ) => {
 		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
 
 		delete_order_item_del ( req, id_order, id_item, ( err: ILError, order: OrderFull ) => {
-			if ( err?.quiet ) return;
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { order } );
@@ -222,7 +211,6 @@ export const init = ( liwe: ILiWE ) => {
 		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
 
 		post_order_transaction_start ( req, id_order, challenge, payment_mode, transaction_id, session_id, ( err: ILError, log: OrderPaymentLog ) => {
-			if ( err?.quiet ) return;
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { log } );
@@ -242,7 +230,6 @@ export const init = ( liwe: ILiWE ) => {
 		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
 
 		post_order_transaction_update ( req, challenge, payment_mode, transaction_id, session_id, event_name, data, ( err: ILError, log: OrderPaymentLog ) => {
-			if ( err?.quiet ) return;
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { log } );
@@ -260,7 +247,6 @@ export const init = ( liwe: ILiWE ) => {
 		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
 
 		post_order_transaction_success ( req, challenge, transaction_id, session_id, payment_mode, ( err: ILError, order: Order ) => {
-			if ( err?.quiet ) return;
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { order } );
@@ -278,7 +264,6 @@ export const init = ( liwe: ILiWE ) => {
 		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
 
 		post_order_transaction_failed ( req, challenge, transaction_id, session_id, payment_mode, ( err: ILError, order: Order ) => {
-			if ( err?.quiet ) return;
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { order } );
@@ -293,7 +278,6 @@ export const init = ( liwe: ILiWE ) => {
 		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
 
 		get_order_admin_details ( req, id, ( err: ILError, order: OrderFull ) => {
-			if ( err?.quiet ) return;
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { order } );
@@ -308,7 +292,6 @@ export const init = ( liwe: ILiWE ) => {
 		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
 
 		delete_order_admin_del_real ( req, id, ( err: ILError, id: string ) => {
-			if ( err?.quiet ) return;
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { id } );
@@ -325,7 +308,6 @@ export const init = ( liwe: ILiWE ) => {
 		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
 
 		post_order_notes_add ( req, notes, id, code, ( err: ILError, order: Order ) => {
-			if ( err?.quiet ) return;
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { order } );
@@ -341,7 +323,6 @@ export const init = ( liwe: ILiWE ) => {
 		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
 
 		post_order_set_delivery_address ( req, id, address, ( err: ILError, order: Order ) => {
-			if ( err?.quiet ) return;
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { order } );
@@ -358,7 +339,6 @@ export const init = ( liwe: ILiWE ) => {
 		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
 
 		get_order_get ( req, challenge, id, code, ( err: ILError, order: Order ) => {
-			if ( err?.quiet ) return;
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { order } );
@@ -374,7 +354,6 @@ export const init = ( liwe: ILiWE ) => {
 		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
 
 		patch_order_change_status ( req, id, status, ( err: ILError, order: Order ) => {
-			if ( err?.quiet ) return;
 			if ( err ) return send_error( res, err );
 
 			send_ok( res, { order } );

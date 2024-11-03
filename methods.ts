@@ -544,7 +544,7 @@ export const delete_order_item_del = ( req: ILRequest, id_order: string, id_item
 // {{{ post_order_transaction_start ( req: ILRequest, id_order: string, challenge: string, payment_mode: string, transaction_id: string, session_id?: string, cback: LCBack = null ): Promise<OrderPaymentLog>
 /**
  *
- * The `challenge` parameter is a challenge hash created composing
+ * The `challenge` parameter is a challenge hash created composing 
  * `id_order`, `transaction_id`, `session_id`, `payment_mode` as set in the `data.json` config file under `security / remote`).
  *
  * @param id_order - The order ID [req]

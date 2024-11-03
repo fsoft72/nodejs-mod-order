@@ -13,6 +13,10 @@ export enum OrderStatus {
 	in_progress = "in_progress",
 	/** The order is brand new */
 	new = "new",
+	/** The order has been paid */
+	paid = "paid",
+	/** The order is pending */
+	pending = "pending",
 	/** The order is ready to be processed */
 	ready = "ready",
 	/** The order is ready to be delivered */
@@ -27,6 +31,8 @@ export const OrderStatusObj = {
 	completed: "completed",
 	in_progress: "in_progress",
 	new: "new",
+	paid: "paid",
+	pending: "pending",
 	ready: "ready",
 	to_deliver: "to_deliver",
 	transaction: "transaction",
