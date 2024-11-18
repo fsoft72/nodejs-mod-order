@@ -1155,6 +1155,26 @@ export const order_set_status = ( req: any, id: string, status: any, cback: LCba
 };
 // }}}
 
+// {{{ order_get ( req?: ILRequest, id?: string, cback: LCBack = null ): Promise<Order>
+/**
+ *
+ * @param req - the Request field [opt]
+ * @param id - The order ID [opt]
+ *
+ * @return : Order
+ *
+ */
+export const order_get = ( req?: ILRequest, id?: string, cback: LCback = null ): Promise<Order> => {
+	return new Promise( async ( resolve, reject ) => {
+		/*=== f2c_start order_get ===*/
+		const order: Order = await _order_get( req, id );
+
+		return cback ? cback( null, order ) : resolve( order );
+		/*=== f2c_end order_get ===*/
+	} );
+};
+// }}}
+
 // {{{ order_db_init ( liwe: ILiWE, cback: LCBack = null ): Promise<boolean>
 /**
  *
