@@ -422,23 +422,27 @@ export const post_order_add = ( req: ILRequest, prod_code: string, qnt: number, 
 };
 // }}}
 
-// {{{ get_order_details ( req: ILRequest, id: string, cback: LCBack = null ): Promise<OrderFull>
+// {{{ get_order_details ( req: ILRequest, id?: string, code?: string, cback: LCBack = null ): Promise<OrderFull>
 /**
  *
  * Returns all order details only if the order is `visible`.
- * The order can be identified by  `id`, `code` or `code_forn`.
+ * The order can be identified by  `id` or `code`.
  * You can pass more than a field, but one is enough.
  * This function returns the full `Order` structure
  *
- * @param id - Order unique ID [req]
+ * @param id - Order unique ID [opt]
+ * @param code - Order unique code [opt]
  *
  * @return order: OrderFull
  *
  */
-export const get_order_details = ( req: ILRequest, id: string, cback: LCback = null ): Promise<OrderFull> => {
+export const get_order_details = ( req: ILRequest, id?: string, code?: string, cback: LCback = null ): Promise<OrderFull> => {
 	return new Promise( async ( resolve, reject ) => {
 		/*=== f2c_start get_order_details ===*/
-		const order: OrderFull = await _order_get( req, id, null, null, true ) as any;
+		if ( !id ) id = undefined;
+		if ( !code ) code = undefined;
+
+		const order: OrderFull = await _order_get( req, id, code, null, true ) as any;
 		const items: OrderItem[] = await adb_find_all( req.db, COLL_ORDER_ITEMS, { id_order: order.id }, OrderItemKeys );
 
 		keys_filter( order, OrderFullKeys );

@@ -154,13 +154,14 @@ export const init = ( liwe: ILiWE ) => {
 	} );
 
 	app.get ( '/api/order/details', ( req: ILRequest, res: ILResponse ) => {
-		const { id, ___errors } = typed_dict( req.query as any, [
-			{ name: "id", type: "string", required: true }
+		const { id, code, ___errors } = typed_dict( req.query as any, [
+			{ name: "id", type: "string" },
+			{ name: "code", type: "string" }
 		] );
 
 		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
 
-		get_order_details ( req, id, ( err: ILError, order: OrderFull ) => {
+		get_order_details ( req, id, code, ( err: ILError, order: OrderFull ) => {
 			if ( err?.quiet ) return;
 			if ( err ) return send_error( res, err );
 
