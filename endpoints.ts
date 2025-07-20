@@ -8,14 +8,14 @@ import { send_error, send_ok, typed_dict } from "../../liwe/utils";
 import { locale_load } from '../../liwe/locale';
 
 import { perms } from '../../liwe/auth';
+import { LiWEResponse, sendParametersError, sendResponse } from '../../liwe/response';
 
 import {
 	// endpoints function
 	delete_order_admin_del, delete_order_admin_del_real, delete_order_item_del, get_order_admin_details, get_order_admin_list,
-	get_order_cart, get_order_details, get_order_get, get_order_list, patch_order_admin_fields,
-	patch_order_admin_update, patch_order_change_status, post_order_add, post_order_admin_add, post_order_admin_tag,
-	post_order_notes_add, post_order_set_delivery_address, post_order_transaction_failed, post_order_transaction_start, post_order_transaction_success,
-	post_order_transaction_update,
+	get_order_cart, get_order_details, get_order_get, get_order_list, patch_order_change_status,
+	post_order_add, post_order_notes_add, post_order_set_delivery_address, post_order_transaction_failed, post_order_transaction_start,
+	post_order_transaction_success, post_order_transaction_update,
 	// functions
 	order_add_product, order_db_init, order_get, order_get_by_transaction_id, order_get_full,
 	order_get_open, order_payment_cancelled, order_payment_completed, order_set_status, order_transaction_start,
@@ -40,179 +40,86 @@ export const init = ( liwe: ILiWE ) => {
 	liwe.cfg.app.languages.map( ( l ) => locale_load( "order", l ) );
 	order_db_init ( liwe );
 
-	app.post ( '/api/order/admin/add', perms( [ "order.add" ] ), ( req: ILRequest, res: ILResponse ) => {
-		const { prod_code, qnt, id_user, ___errors } = typed_dict( req.body, [
-			{ name: "prod_code", type: "string", required: true },
-			{ name: "qnt", type: "number", required: true, default: 1 },
-			{ name: "id_user", type: "string", required: true }
-		] );
-
-		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
-
-		post_order_admin_add ( req, prod_code, qnt, id_user, ( err: ILError, order: Order ) => {
-			if ( err?.quiet ) return;
-			if ( err ) return send_error( res, err );
-
-			send_ok( res, { order } );
-		} );
-	} );
-
-	app.patch ( '/api/order/admin/update', perms( [ "order.add" ] ), ( req: ILRequest, res: ILResponse ) => {
-		const { id, name, ___errors } = typed_dict( req.body, [
-			{ name: "id", type: "string", required: true },
-			{ name: "name", type: "string" }
-		] );
-
-		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
-
-		patch_order_admin_update ( req, id, name, ( err: ILError, order: Order ) => {
-			if ( err?.quiet ) return;
-			if ( err ) return send_error( res, err );
-
-			send_ok( res, { order } );
-		} );
-	} );
-
-	app.patch ( '/api/order/admin/fields', perms( [ "order.add" ] ), ( req: ILRequest, res: ILResponse ) => {
-		const { id, data, ___errors } = typed_dict( req.body, [
-			{ name: "id", type: "string", required: true },
-			{ name: "data", type: "any", required: true }
-		] );
-
-		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
-
-		patch_order_admin_fields ( req, id, data, ( err: ILError, order: Order ) => {
-			if ( err?.quiet ) return;
-			if ( err ) return send_error( res, err );
-
-			send_ok( res, { order } );
-		} );
-	} );
-
-	app.get ( '/api/order/admin/list', perms( [ "order.add" ] ), ( req: ILRequest, res: ILResponse ) => {
+	app.get ( '/api/order/admin/list', perms( [ "order.add" ] ),  async ( req: ILRequest, res: ILResponse ) => {
 		const { skip, rows, ___errors } = typed_dict( req.query as any, [
 			{ name: "skip", type: "number" },
 			{ name: "rows", type: "number" }
 		] );
 
-		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
+		if ( ___errors.length ) return sendParametersError ( res, ___errors );
 
-		get_order_admin_list ( req, skip, rows, ( err: ILError, orders: Order ) => {
-			if ( err?.quiet ) return;
-			if ( err ) return send_error( res, err );
-
-			send_ok( res, { orders } );
-		} );
+		const response = await get_order_admin_list ( req, skip, rows);
+		sendResponse ( res, response );
 	} );
 
-	app.delete ( '/api/order/admin/del', perms( [ "order.add" ] ), ( req: ILRequest, res: ILResponse ) => {
+	app.delete ( '/api/order/admin/del', perms( [ "order.add" ] ),  async ( req: ILRequest, res: ILResponse ) => {
 		const { id, ___errors } = typed_dict( req.body, [
 			{ name: "id", type: "string", required: true }
 		] );
 
-		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
+		if ( ___errors.length ) return sendParametersError ( res, ___errors );
 
-		delete_order_admin_del ( req, id, ( err: ILError, id: string ) => {
-			if ( err?.quiet ) return;
-			if ( err ) return send_error( res, err );
-
-			send_ok( res, { id } );
-		} );
+		const response = await delete_order_admin_del ( req, id);
+		sendResponse ( res, response );
 	} );
 
-	app.post ( '/api/order/admin/tag', perms( [ "order.add" ] ), ( req: ILRequest, res: ILResponse ) => {
-		const { id, tags, ___errors } = typed_dict( req.body, [
-			{ name: "id", type: "string", required: true },
-			{ name: "tags", type: "string[]", required: true }
-		] );
-
-		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
-
-		post_order_admin_tag ( req, id, tags, ( err: ILError, order: Order ) => {
-			if ( err?.quiet ) return;
-			if ( err ) return send_error( res, err );
-
-			send_ok( res, { order } );
-		} );
-	} );
-
-	app.post ( '/api/order/add', perms( [ "is-logged" ] ), ( req: ILRequest, res: ILResponse ) => {
+	app.post ( '/api/order/add', perms( [ "is-logged" ] ),  async ( req: ILRequest, res: ILResponse ) => {
 		const { prod_code, qnt, overwrite, ___errors } = typed_dict( req.body, [
 			{ name: "prod_code", type: "string", required: true },
 			{ name: "qnt", type: "number", required: true, default: 1 },
 			{ name: "overwrite", type: "boolean" }
 		] );
 
-		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
+		if ( ___errors.length ) return sendParametersError ( res, ___errors );
 
-		post_order_add ( req, prod_code, qnt, overwrite, ( err: ILError, order: OrderFull ) => {
-			if ( err?.quiet ) return;
-			if ( err ) return send_error( res, err );
-
-			send_ok( res, { order } );
-		} );
+		const response = await post_order_add ( req, prod_code, qnt, overwrite);
+		sendResponse ( res, response );
 	} );
 
-	app.get ( '/api/order/details', ( req: ILRequest, res: ILResponse ) => {
+	app.get ( '/api/order/details',  async ( req: ILRequest, res: ILResponse ) => {
 		const { id, code, ___errors } = typed_dict( req.query as any, [
 			{ name: "id", type: "string" },
 			{ name: "code", type: "string" }
 		] );
 
-		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
+		if ( ___errors.length ) return sendParametersError ( res, ___errors );
 
-		get_order_details ( req, id, code, ( err: ILError, order: OrderFull ) => {
-			if ( err?.quiet ) return;
-			if ( err ) return send_error( res, err );
-
-			send_ok( res, { order } );
-		} );
+		const response = await get_order_details ( req, id, code);
+		sendResponse ( res, response );
 	} );
 
-	app.get ( '/api/order/list', ( req: ILRequest, res: ILResponse ) => {
+	app.get ( '/api/order/list',  async ( req: ILRequest, res: ILResponse ) => {
 		const { rows, skip, ___errors } = typed_dict( req.query as any, [
 			{ name: "rows", type: "number" },
 			{ name: "skip", type: "number" }
 		] );
 
-		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
+		if ( ___errors.length ) return sendParametersError ( res, ___errors );
 
-		get_order_list ( req, rows, skip, ( err: ILError, orders: Order ) => {
-			if ( err?.quiet ) return;
-			if ( err ) return send_error( res, err );
-
-			send_ok( res, { orders } );
-		} );
+		const response = await get_order_list ( req, rows, skip);
+		sendResponse ( res, response );
 	} );
 
-	app.get ( '/api/order/cart', perms( [ "is-logged" ] ), ( req: ILRequest, res: ILResponse ) => {
+	app.get ( '/api/order/cart', perms( [ "is-logged" ] ),  async ( req: ILRequest, res: ILResponse ) => {
 		
 
-		get_order_cart ( req, ( err: ILError, order: OrderFull ) => {
-			if ( err?.quiet ) return;
-			if ( err ) return send_error( res, err );
-
-			send_ok( res, { order } );
-		} );
+		const response = await get_order_cart ( req, );
+		sendResponse ( res, response );
 	} );
 
-	app.delete ( '/api/order/item/del', perms( [ "is-logged" ] ), ( req: ILRequest, res: ILResponse ) => {
+	app.delete ( '/api/order/item/del', perms( [ "is-logged" ] ),  async ( req: ILRequest, res: ILResponse ) => {
 		const { id_order, id_item, ___errors } = typed_dict( req.body, [
 			{ name: "id_order", type: "string", required: true },
 			{ name: "id_item", type: "string", required: true }
 		] );
 
-		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
+		if ( ___errors.length ) return sendParametersError ( res, ___errors );
 
-		delete_order_item_del ( req, id_order, id_item, ( err: ILError, order: OrderFull ) => {
-			if ( err?.quiet ) return;
-			if ( err ) return send_error( res, err );
-
-			send_ok( res, { order } );
-		} );
+		const response = await delete_order_item_del ( req, id_order, id_item);
+		sendResponse ( res, response );
 	} );
 
-	app.post ( '/api/order/transaction/start', ( req: ILRequest, res: ILResponse ) => {
+	app.post ( '/api/order/transaction/start',  async ( req: ILRequest, res: ILResponse ) => {
 		const { id_order, challenge, payment_mode, transaction_id, session_id, ___errors } = typed_dict( req.body, [
 			{ name: "id_order", type: "string", required: true },
 			{ name: "challenge", type: "string", required: true },
@@ -221,17 +128,13 @@ export const init = ( liwe: ILiWE ) => {
 			{ name: "session_id", type: "string" }
 		] );
 
-		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
+		if ( ___errors.length ) return sendParametersError ( res, ___errors );
 
-		post_order_transaction_start ( req, id_order, challenge, payment_mode, transaction_id, session_id, ( err: ILError, log: OrderPaymentLog ) => {
-			if ( err?.quiet ) return;
-			if ( err ) return send_error( res, err );
-
-			send_ok( res, { log } );
-		} );
+		const response = await post_order_transaction_start ( req, id_order, challenge, payment_mode, transaction_id, session_id);
+		sendResponse ( res, response );
 	} );
 
-	app.post ( '/api/order/transaction/update', ( req: ILRequest, res: ILResponse ) => {
+	app.post ( '/api/order/transaction/update',  async ( req: ILRequest, res: ILResponse ) => {
 		const { challenge, payment_mode, transaction_id, session_id, event_name, data, ___errors } = typed_dict( req.body, [
 			{ name: "challenge", type: "string", required: true },
 			{ name: "payment_mode", type: "string", required: true },
@@ -241,17 +144,13 @@ export const init = ( liwe: ILiWE ) => {
 			{ name: "data", type: "any" }
 		] );
 
-		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
+		if ( ___errors.length ) return sendParametersError ( res, ___errors );
 
-		post_order_transaction_update ( req, challenge, payment_mode, transaction_id, session_id, event_name, data, ( err: ILError, log: OrderPaymentLog ) => {
-			if ( err?.quiet ) return;
-			if ( err ) return send_error( res, err );
-
-			send_ok( res, { log } );
-		} );
+		const response = await post_order_transaction_update ( req, challenge, payment_mode, transaction_id, session_id, event_name, data);
+		sendResponse ( res, response );
 	} );
 
-	app.post ( '/api/order/transaction/success', ( req: ILRequest, res: ILResponse ) => {
+	app.post ( '/api/order/transaction/success',  async ( req: ILRequest, res: ILResponse ) => {
 		const { challenge, transaction_id, session_id, payment_mode, ___errors } = typed_dict( req.body, [
 			{ name: "challenge", type: "string", required: true },
 			{ name: "transaction_id", type: "string", required: true },
@@ -259,17 +158,13 @@ export const init = ( liwe: ILiWE ) => {
 			{ name: "payment_mode", type: "string" }
 		] );
 
-		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
+		if ( ___errors.length ) return sendParametersError ( res, ___errors );
 
-		post_order_transaction_success ( req, challenge, transaction_id, session_id, payment_mode, ( err: ILError, order: Order ) => {
-			if ( err?.quiet ) return;
-			if ( err ) return send_error( res, err );
-
-			send_ok( res, { order } );
-		} );
+		const response = await post_order_transaction_success ( req, challenge, transaction_id, session_id, payment_mode);
+		sendResponse ( res, response );
 	} );
 
-	app.post ( '/api/order/transaction/failed', ( req: ILRequest, res: ILResponse ) => {
+	app.post ( '/api/order/transaction/failed',  async ( req: ILRequest, res: ILResponse ) => {
 		const { challenge, transaction_id, session_id, payment_mode, ___errors } = typed_dict( req.body, [
 			{ name: "challenge", type: "string", required: true },
 			{ name: "transaction_id", type: "string", required: true },
@@ -277,110 +172,82 @@ export const init = ( liwe: ILiWE ) => {
 			{ name: "payment_mode", type: "string" }
 		] );
 
-		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
+		if ( ___errors.length ) return sendParametersError ( res, ___errors );
 
-		post_order_transaction_failed ( req, challenge, transaction_id, session_id, payment_mode, ( err: ILError, order: Order ) => {
-			if ( err?.quiet ) return;
-			if ( err ) return send_error( res, err );
-
-			send_ok( res, { order } );
-		} );
+		const response = await post_order_transaction_failed ( req, challenge, transaction_id, session_id, payment_mode);
+		sendResponse ( res, response );
 	} );
 
-	app.get ( '/api/order/admin/details', perms( [ "is-logged" ] ), ( req: ILRequest, res: ILResponse ) => {
+	app.get ( '/api/order/admin/details', perms( [ "is-logged" ] ),  async ( req: ILRequest, res: ILResponse ) => {
 		const { id, ___errors } = typed_dict( req.query as any, [
 			{ name: "id", type: "string", required: true }
 		] );
 
-		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
+		if ( ___errors.length ) return sendParametersError ( res, ___errors );
 
-		get_order_admin_details ( req, id, ( err: ILError, order: OrderFull ) => {
-			if ( err?.quiet ) return;
-			if ( err ) return send_error( res, err );
-
-			send_ok( res, { order } );
-		} );
+		const response = await get_order_admin_details ( req, id);
+		sendResponse ( res, response );
 	} );
 
-	app.delete ( '/api/order/admin/del/real', perms( [ "order.add" ] ), ( req: ILRequest, res: ILResponse ) => {
+	app.delete ( '/api/order/admin/del/real', perms( [ "order.add" ] ),  async ( req: ILRequest, res: ILResponse ) => {
 		const { id, ___errors } = typed_dict( req.body, [
 			{ name: "id", type: "string", required: true }
 		] );
 
-		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
+		if ( ___errors.length ) return sendParametersError ( res, ___errors );
 
-		delete_order_admin_del_real ( req, id, ( err: ILError, id: string ) => {
-			if ( err?.quiet ) return;
-			if ( err ) return send_error( res, err );
-
-			send_ok( res, { id } );
-		} );
+		const response = await delete_order_admin_del_real ( req, id);
+		sendResponse ( res, response );
 	} );
 
-	app.post ( '/api/order/notes/add', perms( [ "is-logged" ] ), ( req: ILRequest, res: ILResponse ) => {
+	app.post ( '/api/order/notes/add', perms( [ "is-logged" ] ),  async ( req: ILRequest, res: ILResponse ) => {
 		const { notes, id, code, ___errors } = typed_dict( req.body, [
 			{ name: "notes", type: "string", required: true },
 			{ name: "id", type: "string" },
 			{ name: "code", type: "string" }
 		] );
 
-		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
+		if ( ___errors.length ) return sendParametersError ( res, ___errors );
 
-		post_order_notes_add ( req, notes, id, code, ( err: ILError, order: Order ) => {
-			if ( err?.quiet ) return;
-			if ( err ) return send_error( res, err );
-
-			send_ok( res, { order } );
-		} );
+		const response = await post_order_notes_add ( req, notes, id, code);
+		sendResponse ( res, response );
 	} );
 
-	app.post ( '/api/order/set/delivery/address', perms( [ "is-logged" ] ), ( req: ILRequest, res: ILResponse ) => {
+	app.post ( '/api/order/set/delivery/address', perms( [ "is-logged" ] ),  async ( req: ILRequest, res: ILResponse ) => {
 		const { id, address, ___errors } = typed_dict( req.body, [
 			{ name: "id", type: "string", required: true },
 			{ name: "address", type: "any", required: true }
 		] );
 
-		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
+		if ( ___errors.length ) return sendParametersError ( res, ___errors );
 
-		post_order_set_delivery_address ( req, id, address, ( err: ILError, order: Order ) => {
-			if ( err?.quiet ) return;
-			if ( err ) return send_error( res, err );
-
-			send_ok( res, { order } );
-		} );
+		const response = await post_order_set_delivery_address ( req, id, address);
+		sendResponse ( res, response );
 	} );
 
-	app.get ( '/api/order/get', ( req: ILRequest, res: ILResponse ) => {
+	app.get ( '/api/order/get',  async ( req: ILRequest, res: ILResponse ) => {
 		const { challenge, id, code, ___errors } = typed_dict( req.query as any, [
 			{ name: "challenge", type: "string", required: true },
 			{ name: "id", type: "string" },
 			{ name: "code", type: "string" }
 		] );
 
-		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
+		if ( ___errors.length ) return sendParametersError ( res, ___errors );
 
-		get_order_get ( req, challenge, id, code, ( err: ILError, order: Order ) => {
-			if ( err?.quiet ) return;
-			if ( err ) return send_error( res, err );
-
-			send_ok( res, { order } );
-		} );
+		const response = await get_order_get ( req, challenge, id, code);
+		sendResponse ( res, response );
 	} );
 
-	app.patch ( '/api/order/change/status', ( req: ILRequest, res: ILResponse ) => {
+	app.patch ( '/api/order/change/status',  async ( req: ILRequest, res: ILResponse ) => {
 		const { id, status, ___errors } = typed_dict( req.body, [
 			{ name: "id", type: "string", required: true },
 			{ name: "status", type: "string", required: true }
 		] );
 
-		if ( ___errors.length ) return send_error ( res, { message: `Parameters error: ${___errors.join ( ', ' )}` } );
+		if ( ___errors.length ) return sendParametersError ( res, ___errors );
 
-		patch_order_change_status ( req, id, status, ( err: ILError, order: Order ) => {
-			if ( err?.quiet ) return;
-			if ( err ) return send_error( res, err );
-
-			send_ok( res, { order } );
-		} );
+		const response = await patch_order_change_status ( req, id, status);
+		sendResponse ( res, response );
 	} );
 
 };

@@ -4,6 +4,7 @@
  */
 
 import { ILRequest, ILResponse, LCback, ILiweConfig, ILError, ILiWE } from '../../liwe/types';
+import { LiWEResponse, responseError, responseSuccess } from '../../liwe/response';
 import { $l } from '../../liwe/locale';
 import { system_permissions_register } from '../system/methods';
 
@@ -241,71 +242,7 @@ const _stock_scale = async ( req: ILRequest, order: Order ) => {
 };
 /*=== f2c_end __file_header ===*/
 
-// {{{ post_order_admin_add ( req: ILRequest, prod_code: string, qnt: number, id_user: string, cback: LCBack = null ): Promise<Order>
-/**
- *
- * Adds order in the system.
- * This function returns the full `Order` structure
- *
- * @param prod_code - Product Code [req]
- * @param qnt - Quantity to add [req]
- * @param id_user - The ID user to add the order to [req]
- *
- * @return order: Order
- *
- */
-export const post_order_admin_add = ( req: ILRequest, prod_code: string, qnt: number, id_user: string, cback: LCback = null ): Promise<Order> => {
-	return new Promise( async ( resolve, reject ) => {
-		/*=== f2c_start post_order_admin_add ===*/
-		const order: Order = await _order_get( req, null, null, id_user, false );
-		/*=== f2c_end post_order_admin_add ===*/
-	} );
-};
-// }}}
-
-// {{{ patch_order_admin_update ( req: ILRequest, id: string, name?: string, cback: LCBack = null ): Promise<Order>
-/**
- *
- * Updates the order specified by `id`.
- * This function returns the full `Order` structure
- *
- * @param id - Order ID [req]
- * @param name - Order name [opt]
- *
- * @return order: Order
- *
- */
-export const patch_order_admin_update = ( req: ILRequest, id: string, name?: string, cback: LCback = null ): Promise<Order> => {
-	return new Promise( async ( resolve, reject ) => {
-		/*=== f2c_start patch_order_admin_update ===*/
-
-		/*=== f2c_end patch_order_admin_update ===*/
-	} );
-};
-// }}}
-
-// {{{ patch_order_admin_fields ( req: ILRequest, id: string, data: any, cback: LCBack = null ): Promise<Order>
-/**
- *
- * The call modifies one or more fields.
- * This function returns the full `Order` structure
- *
- * @param id - The order ID [req]
- * @param data - The field / value to patch [req]
- *
- * @return order: Order
- *
- */
-export const patch_order_admin_fields = ( req: ILRequest, id: string, data: any, cback: LCback = null ): Promise<Order> => {
-	return new Promise( async ( resolve, reject ) => {
-		/*=== f2c_start patch_order_admin_fields ===*/
-
-		/*=== f2c_end patch_order_admin_fields ===*/
-	} );
-};
-// }}}
-
-// {{{ get_order_admin_list ( req: ILRequest, skip: number = 0, rows: number = -1, cback: LCBack = null ): Promise<Order[]>
+// {{{ get_order_admin_list ( req: ILRequest, skip: number = 0, rows: number = -1cback: LCBack = null ): Promise<Order[]>
 /**
  *
  * Returns all orders.
@@ -318,31 +255,29 @@ export const patch_order_admin_fields = ( req: ILRequest, id: string, data: any,
  * @return orders: Order
  *
  */
-export const get_order_admin_list = ( req: ILRequest, skip: number = 0, rows: number = -1, cback: LCback = null ): Promise<Order[]> => {
-	return new Promise( async ( resolve, reject ) => {
-		/*=== f2c_start get_order_admin_list ===*/
-		const results: any[] = await adb_query_all( req.db, `
+export const get_order_admin_list = async ( req: ILRequest, skip: number = 0, rows: number = -1 ): Promise<LiWEResponse<Order[]>> => {
+	/*=== f2c_start get_order_admin_list ===*/
+	const results: any[] = await adb_query_all( req.db, `
 		FOR o IN orders
 			FILTER o.deleted == null
 			FOR u IN users
 				FILTER u.id == o.id_user
 				RETURN { order: o, user: { id: u.id, name: u.name, lastname: u.lastname, email: u.email, username: u.username } }`, {} );
 
-		const orders: Order[] = results.map( ( s ) => {
-			s.order.user = s.user;
-			keys_remove( s.order, [ '_id', '_key', '_rev' ] );
-			return s.order;
-		} );
-
-		// keys_filter( orders, OrderFullKeys );
-
-		return cback ? cback( null, orders ) : resolve( orders );
-		/*=== f2c_end get_order_admin_list ===*/
+	const orders: Order[] = results.map( ( s ) => {
+		s.order.user = s.user;
+		keys_remove( s.order, [ '_id', '_key', '_rev' ] );
+		return s.order;
 	} );
+
+	// keys_filter( orders, OrderFullKeys );
+
+	return responseSuccess( orders );
+	/*=== f2c_end get_order_admin_list ===*/
 };
 // }}}
 
-// {{{ delete_order_admin_del ( req: ILRequest, id: string, cback: LCBack = null ): Promise<string>
+// {{{ delete_order_admin_del ( req: ILRequest, id: stringcback: LCBack = null ): Promise<string>
 /**
  *
  * Deletes a order from the system.
@@ -352,45 +287,23 @@ export const get_order_admin_list = ( req: ILRequest, skip: number = 0, rows: nu
  * @return id: string
  *
  */
-export const delete_order_admin_del = ( req: ILRequest, id: string, cback: LCback = null ): Promise<string> => {
-	return new Promise( async ( resolve, reject ) => {
-		/*=== f2c_start delete_order_admin_del ===*/
-		const err = { message: 'Order not found' };
-		const order: Order = await _order_get( req, id, null, null, false );
+export const delete_order_admin_del = async ( req: ILRequest, id: string ): Promise<LiWEResponse<string>> => {
+	/*=== f2c_start delete_order_admin_del ===*/
+	const err = { message: 'Order not found' };
+	const order: Order = await _order_get( req, id, null, null, false );
 
-		if ( !order ) return cback ? cback( err, null ) : reject( err );
+	if ( !order ) return responseError( err.message );
 
-		order.deleted = new Date();
+	order.deleted = new Date();
 
-		await adb_record_add( req.db, COLL_ORDERS, order );
+	await adb_record_add( req.db, COLL_ORDERS, order );
 
-		return cback ? cback( null, id ) : resolve( id );
-		/*=== f2c_end delete_order_admin_del ===*/
-	} );
+	return responseSuccess( id );
+	/*=== f2c_end delete_order_admin_del ===*/
 };
 // }}}
 
-// {{{ post_order_admin_tag ( req: ILRequest, id: string, tags: string[], cback: LCBack = null ): Promise<Order>
-/**
- *
- * This endpoint allows you to add tags to an order.
- *
- * @param id - The order ID [req]
- * @param tags - A list of tags to be added to the user [req]
- *
- * @return order: Order
- *
- */
-export const post_order_admin_tag = ( req: ILRequest, id: string, tags: string[], cback: LCback = null ): Promise<Order> => {
-	return new Promise( async ( resolve, reject ) => {
-		/*=== f2c_start post_order_admin_tag ===*/
-
-		/*=== f2c_end post_order_admin_tag ===*/
-	} );
-};
-// }}}
-
-// {{{ post_order_add ( req: ILRequest, prod_code: string, qnt: number, overwrite?: boolean, cback: LCBack = null ): Promise<OrderFull>
+// {{{ post_order_add ( req: ILRequest, prod_code: string, qnt: number, overwrite?: booleancback: LCBack = null ): Promise<OrderFull>
 /**
  *
  * Adds a product to the current order.
@@ -403,26 +316,24 @@ export const post_order_admin_tag = ( req: ILRequest, id: string, tags: string[]
  * @return order: OrderFull
  *
  */
-export const post_order_add = ( req: ILRequest, prod_code: string, qnt: number, overwrite?: boolean, cback: LCback = null ): Promise<OrderFull> => {
-	return new Promise( async ( resolve, reject ) => {
-		/*=== f2c_start post_order_add ===*/
-		let order: Order = await _order_get( req );
-		try {
-			const orderFull: OrderFull = await _add_prod( req, order, prod_code, qnt, overwrite );
+export const post_order_add = async ( req: ILRequest, prod_code: string, qnt: number, overwrite?: boolean ): Promise<LiWEResponse<OrderFull>> => {
+	/*=== f2c_start post_order_add ===*/
+	let order: Order = await _order_get( req );
+	try {
+		const orderFull: OrderFull = await _add_prod( req, order, prod_code, qnt, overwrite );
 
-			keys_filter( orderFull, OrderFullKeys );
+		keys_filter( orderFull, OrderFullKeys );
 
-			return cback ? cback( null, orderFull ) : resolve( orderFull );
-		} catch ( e ) {
-			console.error( "=== ERROR: order_add: ", e );
-			return cback ? cback( e ) : reject( e );
-		}
-		/*=== f2c_end post_order_add ===*/
-	} );
+		return responseSuccess( orderFull );
+	} catch ( e ) {
+		console.error( "=== ERROR: order_add: ", e );
+		return responseError( e.message || 'Error adding product to order' );
+	}
+	/*=== f2c_end post_order_add ===*/
 };
 // }}}
 
-// {{{ get_order_details ( req: ILRequest, id?: string, code?: string, cback: LCBack = null ): Promise<OrderFull>
+// {{{ get_order_details ( req: ILRequest, id?: string, code?: stringcback: LCBack = null ): Promise<OrderFull>
 /**
  *
  * Returns all order details only if the order is `visible`.
@@ -436,25 +347,23 @@ export const post_order_add = ( req: ILRequest, prod_code: string, qnt: number, 
  * @return order: OrderFull
  *
  */
-export const get_order_details = ( req: ILRequest, id?: string, code?: string, cback: LCback = null ): Promise<OrderFull> => {
-	return new Promise( async ( resolve, reject ) => {
-		/*=== f2c_start get_order_details ===*/
-		if ( !id ) id = undefined;
-		if ( !code ) code = undefined;
+export const get_order_details = async ( req: ILRequest, id?: string, code?: string ): Promise<LiWEResponse<OrderFull>> => {
+	/*=== f2c_start get_order_details ===*/
+	if ( !id ) id = undefined;
+	if ( !code ) code = undefined;
 
-		const order: OrderFull = await _order_get( req, id, code, null, true ) as any;
-		const items: OrderItem[] = await adb_find_all( req.db, COLL_ORDER_ITEMS, { id_order: order.id }, OrderItemKeys );
+	const order: OrderFull = await _order_get( req, id, code, null, true ) as any;
+	const items: OrderItem[] = await adb_find_all( req.db, COLL_ORDER_ITEMS, { id_order: order.id }, OrderItemKeys );
 
-		keys_filter( order, OrderFullKeys );
-		order.items = items;
+	keys_filter( order, OrderFullKeys );
+	order.items = items;
 
-		return cback ? cback( null, order ) : resolve( order );
-		/*=== f2c_end get_order_details ===*/
-	} );
+	return responseSuccess( order );
+	/*=== f2c_end get_order_details ===*/
 };
 // }}}
 
-// {{{ get_order_list ( req: ILRequest, rows: number = -1, skip: number = 0, cback: LCBack = null ): Promise<Order[]>
+// {{{ get_order_list ( req: ILRequest, rows: number = -1, skip: number = 0cback: LCBack = null ): Promise<Order[]>
 /**
  *
  * Returns all visible orders.
@@ -468,14 +377,12 @@ export const get_order_details = ( req: ILRequest, id?: string, code?: string, c
  * @return orders: Order
  *
  */
-export const get_order_list = ( req: ILRequest, rows: number = -1, skip: number = 0, cback: LCback = null ): Promise<Order[]> => {
-	return new Promise( async ( resolve, reject ) => {
-		/*=== f2c_start get_order_list ===*/
-		const orders: Order[] = await adb_find_all( req.db, COLL_ORDERS, { id_user: req.user.id }, OrderKeys, { skip, rows } );
+export const get_order_list = async ( req: ILRequest, rows: number = -1, skip: number = 0 ): Promise<LiWEResponse<Order[]>> => {
+	/*=== f2c_start get_order_list ===*/
+	const orders: Order[] = await adb_find_all( req.db, COLL_ORDERS, { id_user: req.user.id }, OrderKeys, { skip, rows } );
 
-		return cback ? cback( null, orders ) : resolve( orders );
-		/*=== f2c_end get_order_list ===*/
-	} );
+	return responseSuccess( orders );
+	/*=== f2c_end get_order_list ===*/
 };
 // }}}
 
@@ -489,27 +396,25 @@ export const get_order_list = ( req: ILRequest, rows: number = -1, skip: number 
  * @return order: OrderFull
  *
  */
-export const get_order_cart = ( req: ILRequest, cback: LCback = null ): Promise<OrderFull> => {
-	return new Promise( async ( resolve, reject ) => {
-		/*=== f2c_start get_order_cart ===*/
-		const err = { message: 'Order not found' };
-		const order: OrderFull = await _order_get( req, null, null, req?.user?.id, false ) as OrderFull;
+export const get_order_cart = async ( req: ILRequest,  ): Promise<LiWEResponse<OrderFull>> => {
+	/*=== f2c_start get_order_cart ===*/
+	const err = { message: 'Order not found' };
+	const order: OrderFull = await _order_get( req, null, null, req?.user?.id, false ) as OrderFull;
 
-		// no order, or no order in 'new' means that the cart is empty
-		if ( !order || order.status != OrderStatus.new ) return cback ? cback( err ) : reject( err );
+	// no order, or no order in 'new' means that the cart is empty
+	if ( !order || order.status != OrderStatus.new ) return responseError( err.message ); // FIXME: remove .message
 
-		const items: OrderItem[] = await adb_find_all( req.db, COLL_ORDER_ITEMS, { id_order: order.id }, OrderItemKeys );
-		order.items = items;
-		_calc_order_tots( order as Order, items );
-		keys_filter( order, OrderFullKeys );
+	const items: OrderItem[] = await adb_find_all( req.db, COLL_ORDER_ITEMS, { id_order: order.id }, OrderItemKeys );
+	order.items = items;
+	_calc_order_tots( order as Order, items );
+	keys_filter( order, OrderFullKeys );
 
-		return cback ? cback( null, order ) : resolve( order );
-		/*=== f2c_end get_order_cart ===*/
-	} );
+	return responseSuccess( order );
+	/*=== f2c_end get_order_cart ===*/
 };
 // }}}
 
-// {{{ delete_order_item_del ( req: ILRequest, id_order: string, id_item: string, cback: LCBack = null ): Promise<OrderFull>
+// {{{ delete_order_item_del ( req: ILRequest, id_order: string, id_item: stringcback: LCBack = null ): Promise<OrderFull>
 /**
  *
  * Deletes an item from an order.
@@ -522,44 +427,42 @@ export const get_order_cart = ( req: ILRequest, cback: LCback = null ): Promise<
  * @return order: OrderFull
  *
  */
-export const delete_order_item_del = ( req: ILRequest, id_order: string, id_item: string, cback: LCback = null ): Promise<OrderFull> => {
-	return new Promise( async ( resolve, reject ) => {
-		/*=== f2c_start delete_order_item_del ===*/
-		const err = { message: 'Order not found' };
-		const order: OrderFull = await _order_get( req, id_order ) as OrderFull;
+export const delete_order_item_del = async ( req: ILRequest, id_order: string, id_item: string ): Promise<LiWEResponse<OrderFull>> => {
+	/*=== f2c_start delete_order_item_del ===*/
+	const err = { message: 'Order not found' };
+	const order: OrderFull = await _order_get( req, id_order ) as OrderFull;
 
-		if ( !order ) return cback ? cback( err ) : reject( err );
-		if ( order.status != OrderStatus.new ) {
-			err.message = 'Order not modifiable';
-			return cback ? cback( err ) : reject( err );
-		}
+	if ( !order ) return responseError( err.message ); // FIXME: remove .message
+	if ( order.status != OrderStatus.new ) {
+		err.message = 'Order not modifiable';
+		return responseError( err.message ); // FIXME: remove .message
+	}
 
-		// TODO: also admin can delete an item
-		if ( order.id_user != req.user.id ) {
-			err.message = 'You are not the owner of this order';
-			return cback ? cback( err ) : reject( err );
-		}
+	// TODO: also admin can delete an item
+	if ( order.id_user != req.user.id ) {
+		err.message = 'You are not the owner of this order';
+		return responseError( err.message ); // FIXME: remove .message
+	}
 
-		await adb_del_one( req.db, COLL_ORDER_ITEMS, { id: id_item } );
+	await adb_del_one( req.db, COLL_ORDER_ITEMS, { id: id_item } );
 
-		const items: OrderItem[] = await _calc_order_tots_fetch( req, order as Order );
+	const items: OrderItem[] = await _calc_order_tots_fetch( req, order as Order );
 
-		await adb_record_add( req.db, COLL_ORDERS, order );
+	await adb_record_add( req.db, COLL_ORDERS, order );
 
-		order.items = items;
+	order.items = items;
 
-		keys_filter( order, OrderFullKeys );
+	keys_filter( order, OrderFullKeys );
 
-		return cback ? cback( null, order ) : resolve( order );
-		/*=== f2c_end delete_order_item_del ===*/
-	} );
+	return responseSuccess( order );
+	/*=== f2c_end delete_order_item_del ===*/
 };
 // }}}
 
-// {{{ post_order_transaction_start ( req: ILRequest, id_order: string, challenge: string, payment_mode: string, transaction_id: string, session_id?: string, cback: LCBack = null ): Promise<OrderPaymentLog>
+// {{{ post_order_transaction_start ( req: ILRequest, id_order: string, challenge: string, payment_mode: string, transaction_id: string, session_id?: stringcback: LCBack = null ): Promise<OrderPaymentLog>
 /**
  *
- * The `challenge` parameter is a challenge hash created composing
+ * The `challenge` parameter is a challenge hash created composing 
  * `id_order`, `transaction_id`, `session_id`, `payment_mode` as set in the `data.json` config file under `security / remote`).
  *
  * @param id_order - The order ID [req]
@@ -571,24 +474,22 @@ export const delete_order_item_del = ( req: ILRequest, id_order: string, id_item
  * @return log: OrderPaymentLog
  *
  */
-export const post_order_transaction_start = ( req: ILRequest, id_order: string, challenge: string, payment_mode: string, transaction_id: string, session_id?: string, cback: LCback = null ): Promise<OrderPaymentLog> => {
-	return new Promise( async ( resolve, reject ) => {
-		/*=== f2c_start post_order_transaction_start ===*/
-		const err = { message: 'Invalid challenge' };
+export const post_order_transaction_start = async ( req: ILRequest, id_order: string, challenge: string, payment_mode: string, transaction_id: string, session_id?: string ): Promise<LiWEResponse<OrderPaymentLog>> => {
+	/*=== f2c_start post_order_transaction_start ===*/
+	const err = { message: 'Invalid challenge' };
 
-		console.log( "=== ORDER TRANSACTION START: ", id_order );
+	console.log( "=== ORDER TRANSACTION START: ", id_order );
 
-		if ( !challenge_check( challenge, [ id_order, transaction_id, session_id, payment_mode ] ) ) return cback ? cback( err ) : reject( err );
+	if ( !challenge_check( challenge, [ id_order, transaction_id, session_id, payment_mode ] ) ) return responseError( err.message ); // FIXME: remove .message
 
-		const order = await order_transaction_start( req, id_order, payment_mode, transaction_id, session_id, 'transaction.start' );
+	const order = await order_transaction_start( req, id_order, payment_mode, transaction_id, session_id, 'transaction.start' );
 
-		return cback ? cback( null, order ) : resolve( order );
-		/*=== f2c_end post_order_transaction_start ===*/
-	} );
+	return responseSuccess( order );
+	/*=== f2c_end post_order_transaction_start ===*/
 };
 // }}}
 
-// {{{ post_order_transaction_update ( req: ILRequest, challenge: string, payment_mode: string, transaction_id: string, session_id?: string, event_name?: string, data?: any, cback: LCBack = null ): Promise<OrderPaymentLog>
+// {{{ post_order_transaction_update ( req: ILRequest, challenge: string, payment_mode: string, transaction_id: string, session_id?: string, event_name?: string, data?: anycback: LCBack = null ): Promise<OrderPaymentLog>
 /**
  *
  * The `challenge` parameter is a `MD5` hash created composing (`email` + `name` + `remote_secret_key` as set in the `data.json` config file under `security / remote`).
@@ -603,29 +504,24 @@ export const post_order_transaction_start = ( req: ILRequest, id_order: string, 
  * @return log: OrderPaymentLog
  *
  */
-export const post_order_transaction_update = ( req: ILRequest, challenge: string, payment_mode: string, transaction_id: string, session_id?: string, event_name?: string, data?: any, cback: LCback = null ): Promise<OrderPaymentLog> => {
-	return new Promise( async ( resolve, reject ) => {
-		/*=== f2c_start post_order_transaction_update ===*/
-		const err = { message: 'Invalid challenge' };
+export const post_order_transaction_update = async ( req: ILRequest, challenge: string, payment_mode: string, transaction_id: string, session_id?: string, event_name?: string, data?: any ): Promise<LiWEResponse<OrderPaymentLog>> => {
+	/*=== f2c_start post_order_transaction_update ===*/
+	const err = { message: 'Invalid challenge' };
 
-		if ( !challenge_check( challenge, [ payment_mode, transaction_id, session_id ] ) ) return cback ? cback( err ) : reject( err );
+	if ( !challenge_check( challenge, [ payment_mode, transaction_id, session_id ] ) ) return responseError( err.message ); // FIXME: remove .message
 
-		const order: Order = await order_get_by_transaction_id( req, transaction_id, session_id, payment_mode );
+	const order: Order = await order_get_by_transaction_id( req, err, transaction_id, session_id, payment_mode );
 
-		if ( !order ) {
-			err.message = 'Order not found';
-			return cback ? cback( err ) : reject( err );
-		}
+	if ( !order ) return responseError( err.message ); // FIXME: remove .message
 
-		const td = await order_transaction_update( req, order.id, transaction_id, session_id, event_name, data );
+	const td = await order_transaction_update( req, order.id, transaction_id, session_id, event_name, data );
 
-		return cback ? cback( null, td ) : resolve( td );
-		/*=== f2c_end post_order_transaction_update ===*/
-	} );
+	return responseSuccess( td );
+	/*=== f2c_end post_order_transaction_update ===*/
 };
 // }}}
 
-// {{{ post_order_transaction_success ( req: ILRequest, challenge: string, transaction_id: string, session_id?: string, payment_mode?: string, cback: LCBack = null ): Promise<Order>
+// {{{ post_order_transaction_success ( req: ILRequest, challenge: string, transaction_id: string, session_id?: string, payment_mode?: stringcback: LCBack = null ): Promise<Order>
 /**
  *
  * Mark an order as "success"
@@ -638,34 +534,26 @@ export const post_order_transaction_update = ( req: ILRequest, challenge: string
  * @return order: Order
  *
  */
-export const post_order_transaction_success = ( req: ILRequest, challenge: string, transaction_id: string, session_id?: string, payment_mode?: string, cback: LCback = null ): Promise<Order> => {
-	return new Promise( async ( resolve, reject ) => {
-		/*=== f2c_start post_order_transaction_success ===*/
-		const err = { message: 'Invalid challenge' };
+export const post_order_transaction_success = async ( req: ILRequest, challenge: string, transaction_id: string, session_id?: string, payment_mode?: string ): Promise<LiWEResponse<Order>> => {
+	/*=== f2c_start post_order_transaction_success ===*/
+	const err = { message: 'Invalid challenge' };
 
-		console.log( "=== TRANSACTION SUCCESS 01: ", { transaction_id, session_id, payment_mode } );
-		if ( !challenge_check( challenge, [ transaction_id, session_id, payment_mode ] ) ) return cback ? cback( err ) : reject( err );
+	if ( !challenge_check( challenge, [ transaction_id, session_id, payment_mode ] ) ) return responseError( err.message ); // FIXME: remove .message
 
-		let order: Order = await order_get_by_transaction_id( req, transaction_id, session_id, payment_mode );
-		console.log( "=== TRANSACTION SUCCESS 02: ", { order } );
+	let order: Order = await order_get_by_transaction_id( req, err, transaction_id, session_id, payment_mode );
 
-		if ( !order ) {
-			err.message = 'Order not found';
-			return cback ? cback( err ) : reject( err );
-		}
+	if ( !order ) return responseError( err.message );
 
-		console.log( "=== TRANSACTION PAYMENT COMPLETE: ", order.id );
-		order = await order_payment_completed( req, order.id );
+	order = await order_payment_completed( req, order.id, err );
 
-		console.log( "=== TRANSACTION END" );
+	if ( !order ) return responseError( err.message );
 
-		return cback ? cback( null, order ) : resolve( order );
-		/*=== f2c_end post_order_transaction_success ===*/
-	} );
+	return responseSuccess( order );
+	/*=== f2c_end post_order_transaction_success ===*/
 };
 // }}}
 
-// {{{ post_order_transaction_failed ( req: ILRequest, challenge: string, transaction_id: string, session_id?: string, payment_mode?: string, cback: LCBack = null ): Promise<Order>
+// {{{ post_order_transaction_failed ( req: ILRequest, challenge: string, transaction_id: string, session_id?: string, payment_mode?: stringcback: LCBack = null ): Promise<Order>
 /**
  *
  * Mark an order with "payment failed"
@@ -678,29 +566,28 @@ export const post_order_transaction_success = ( req: ILRequest, challenge: strin
  * @return order: Order
  *
  */
-export const post_order_transaction_failed = ( req: ILRequest, challenge: string, transaction_id: string, session_id?: string, payment_mode?: string, cback: LCback = null ): Promise<Order> => {
-	return new Promise( async ( resolve, reject ) => {
-		/*=== f2c_start post_order_transaction_failed ===*/
-		const err = { message: 'Invalid challenge' };
+export const post_order_transaction_failed = async ( req: ILRequest, challenge: string, transaction_id: string, session_id?: string, payment_mode?: string ): Promise<LiWEResponse<Order>> => {
+	/*=== f2c_start post_order_transaction_failed ===*/
+	const err = { message: 'Invalid challenge' };
 
-		if ( !challenge_check( challenge, [ transaction_id, session_id, payment_mode ] ) ) return cback ? cback( err ) : reject( err );
+	if ( !challenge_check( challenge, [ transaction_id, session_id, payment_mode ] ) ) return responseError( err.message ); // FIXME: remove .message
 
-		let order: Order = await order_get_by_transaction_id( req, transaction_id, session_id, payment_mode );
+	let order: Order = await order_get_by_transaction_id( req, transaction_id, session_id, payment_mode );
 
-		if ( !order ) {
-			err.message = 'Order not found';
-			return cback ? cback( err ) : reject( err );
-		}
+	if ( !order ) {
+		err.message = 'Order not found';
+		return responseError( err.message ); // FIXME: remove .message
+	}
 
-		order = await order_payment_cancelled( req, order.id );
+	order = await order_payment_cancelled( req, order.id, err );
+	if ( !order ) return responseError( err.message );
 
-		return cback ? cback( null, order ) : resolve( order );
-		/*=== f2c_end post_order_transaction_failed ===*/
-	} );
+	return responseSuccess( order );
+	/*=== f2c_end post_order_transaction_failed ===*/
 };
 // }}}
 
-// {{{ get_order_admin_details ( req: ILRequest, id: string, cback: LCBack = null ): Promise<OrderFull>
+// {{{ get_order_admin_details ( req: ILRequest, id: stringcback: LCBack = null ): Promise<OrderFull>
 /**
  *
  * @param id - The order ID [req]
@@ -708,18 +595,16 @@ export const post_order_transaction_failed = ( req: ILRequest, challenge: string
  * @return order: OrderFull
  *
  */
-export const get_order_admin_details = ( req: ILRequest, id: string, cback: LCback = null ): Promise<OrderFull> => {
-	return new Promise( async ( resolve, reject ) => {
-		/*=== f2c_start get_order_admin_details ===*/
-		const order: OrderFull = await _order_get_full( req, id );
+export const get_order_admin_details = async ( req: ILRequest, id: string ): Promise<LiWEResponse<OrderFull>> => {
+	/*=== f2c_start get_order_admin_details ===*/
+	const order: OrderFull = await _order_get_full( req, id );
 
-		return cback ? cback( null, order ) : resolve( order );
-		/*=== f2c_end get_order_admin_details ===*/
-	} );
+	return responseSuccess( order );
+	/*=== f2c_end get_order_admin_details ===*/
 };
 // }}}
 
-// {{{ delete_order_admin_del_real ( req: ILRequest, id: string, cback: LCBack = null ): Promise<string>
+// {{{ delete_order_admin_del_real ( req: ILRequest, id: stringcback: LCBack = null ): Promise<string>
 /**
  *
  * Deletes a order from the system for real (removing everything from the database)
@@ -729,22 +614,20 @@ export const get_order_admin_details = ( req: ILRequest, id: string, cback: LCba
  * @return id: string
  *
  */
-export const delete_order_admin_del_real = ( req: ILRequest, id: string, cback: LCback = null ): Promise<string> => {
-	return new Promise( async ( resolve, reject ) => {
-		/*=== f2c_start delete_order_admin_del_real ===*/
-		// deletes all order items
-		await adb_del_all( req.db, COLL_ORDER_ITEMS, { id_order: id } );
+export const delete_order_admin_del_real = async ( req: ILRequest, id: string ): Promise<LiWEResponse<string>> => {
+	/*=== f2c_start delete_order_admin_del_real ===*/
+	// deletes all order items
+	await adb_del_all( req.db, COLL_ORDER_ITEMS, { id_order: id } );
 
-		// deletes the order
-		await adb_del_one( req.db, COLL_ORDERS, { id } );
+	// deletes the order
+	await adb_del_one( req.db, COLL_ORDERS, { id } );
 
-		return cback ? cback( null, id ) : resolve( id );
-		/*=== f2c_end delete_order_admin_del_real ===*/
-	} );
+	return responseSuccess( id );
+	/*=== f2c_end delete_order_admin_del_real ===*/
 };
 // }}}
 
-// {{{ post_order_notes_add ( req: ILRequest, notes: string, id?: string, code?: string, cback: LCBack = null ): Promise<Order>
+// {{{ post_order_notes_add ( req: ILRequest, notes: string, id?: string, code?: stringcback: LCBack = null ): Promise<Order>
 /**
  *
  * Only the current user that owns the order can add notes to the order itself.
@@ -757,30 +640,28 @@ export const delete_order_admin_del_real = ( req: ILRequest, id: string, cback: 
  * @return order: Order
  *
  */
-export const post_order_notes_add = ( req: ILRequest, notes: string, id?: string, code?: string, cback: LCback = null ): Promise<Order> => {
-	return new Promise( async ( resolve, reject ) => {
-		/*=== f2c_start post_order_notes_add ===*/
-		const err: ILError = { message: 'Order not found' };
-		const order: Order = await _order_get( req, id, code );
+export const post_order_notes_add = async ( req: ILRequest, notes: string, id?: string, code?: string ): Promise<LiWEResponse<Order>> => {
+	/*=== f2c_start post_order_notes_add ===*/
+	const err: ILError = { message: 'Order not found' };
+	const order: Order = await _order_get( req, id, code );
 
-		if ( !order ) return cback ? cback( err ) : reject( err );
+	if ( !order ) return responseError( err.message ); // FIXME: remove .message
 
-		if ( order.id_user != req.user.id ) {
-			err.message = 'You are not the owner of this order';
-			return cback ? cback( err ) : reject( err );
-		}
+	if ( order.id_user != req.user.id ) {
+		err.message = 'You are not the owner of this order';
+		return responseError( err.message ); // FIXME: remove .message
+	}
 
-		order.notes = notes;
+	order.notes = notes;
 
-		await adb_record_add( req.db, COLL_ORDERS, order, OrderKeys );
+	await adb_record_add( req.db, COLL_ORDERS, order, OrderKeys );
 
-		return cback ? cback( null, order ) : resolve( order );
-		/*=== f2c_end post_order_notes_add ===*/
-	} );
+	return responseSuccess( order );
+	/*=== f2c_end post_order_notes_add ===*/
 };
 // }}}
 
-// {{{ post_order_set_delivery_address ( req: ILRequest, id: string, address: any, cback: LCBack = null ): Promise<Order>
+// {{{ post_order_set_delivery_address ( req: ILRequest, id: string, address: anycback: LCBack = null ): Promise<Order>
 /**
  *
  * Set inside the `order` structure the delivery address.
@@ -792,32 +673,30 @@ export const post_order_notes_add = ( req: ILRequest, notes: string, id?: string
  * @return order: Order
  *
  */
-export const post_order_set_delivery_address = ( req: ILRequest, id: string, address: any, cback: LCback = null ): Promise<Order> => {
-	return new Promise( async ( resolve, reject ) => {
-		/*=== f2c_start post_order_set_delivery_address ===*/
-		const err: ILError = { message: 'Order not found' };
-		let order: Order = await _order_get( req, id );
+export const post_order_set_delivery_address = async ( req: ILRequest, id: string, address: any ): Promise<LiWEResponse<Order>> => {
+	/*=== f2c_start post_order_set_delivery_address ===*/
+	const err: ILError = { message: 'Order not found' };
+	let order: Order = await _order_get( req, id );
 
-		if ( !order ) return cback ? cback( err ) : reject( err );
+	if ( !order ) return responseError( err.message ); // FIXME: remove .message
 
-		console.log( "=== OWNER: order.id_user: ", order.id_user, " req.user.id: ", req.user.id );
+	console.log( "=== OWNER: order.id_user: ", order.id_user, " req.user.id: ", req.user.id );
 
-		if ( ( order.id_user != req.user.id ) && ( perm_available( req.user, [ 'order.address_update' ] ) == false ) ) {
-			err.message = 'You are not the owner of this order';
-			return cback ? cback( err ) : reject( err );
-		}
+	if ( ( order.id_user != req.user.id ) && ( perm_available( req.user, [ 'order.address_update' ] ) == false ) ) {
+		err.message = 'You are not the owner of this order';
+		return responseError( err.message ); // FIXME: remove .message
+	}
 
-		order.address = address;
+	order.address = address;
 
-		order = await adb_record_add( req.db, COLL_ORDERS, order, OrderKeys );
+	order = await adb_record_add( req.db, COLL_ORDERS, order, OrderKeys );
 
-		return cback ? cback( null, order ) : resolve( order );
-		/*=== f2c_end post_order_set_delivery_address ===*/
-	} );
+	return responseSuccess( order );
+	/*=== f2c_end post_order_set_delivery_address ===*/
 };
 // }}}
 
-// {{{ get_order_get ( req: ILRequest, challenge: string, id?: string, code?: string, cback: LCBack = null ): Promise<Order>
+// {{{ get_order_get ( req: ILRequest, challenge: string, id?: string, code?: stringcback: LCBack = null ): Promise<Order>
 /**
  *
  * Return basic data by `id` or `code`
@@ -831,25 +710,23 @@ export const post_order_set_delivery_address = ( req: ILRequest, id: string, add
  * @return order: Order
  *
  */
-export const get_order_get = ( req: ILRequest, challenge: string, id?: string, code?: string, cback: LCback = null ): Promise<Order> => {
-	return new Promise( async ( resolve, reject ) => {
-		/*=== f2c_start get_order_get ===*/
-		const err = { message: 'Invalid challenge' };
+export const get_order_get = async ( req: ILRequest, challenge: string, id?: string, code?: string ): Promise<LiWEResponse<Order>> => {
+	/*=== f2c_start get_order_get ===*/
+	const err = { message: 'Invalid challenge' };
 
-		if ( !challenge_check( challenge, [ id, code ] ) ) {
-			console.error( "=== ERROR: Invalid challenge" );
-			return cback ? cback( err ) : reject( err );
-		}
+	if ( !challenge_check( challenge, [ id, code ] ) ) {
+		console.error( "=== ERROR: Invalid challenge" );
+		return responseError( err.message ); // FIXME: remove .message
+	}
 
-		const order: Order = await _order_get( req, id, code );
+	const order: Order = await _order_get( req, id, code );
 
-		return cback ? cback( null, order ) : resolve( order );
-		/*=== f2c_end get_order_get ===*/
-	} );
+	return responseSuccess( order );
+	/*=== f2c_end get_order_get ===*/
 };
 // }}}
 
-// {{{ patch_order_change_status ( req: ILRequest, id: string, status: string, cback: LCBack = null ): Promise<Order>
+// {{{ patch_order_change_status ( req: ILRequest, id: string, status: stringcback: LCBack = null ): Promise<Order>
 /**
  *
  * @param id - Order ID [req]
@@ -858,26 +735,24 @@ export const get_order_get = ( req: ILRequest, challenge: string, id?: string, c
  * @return order: Order
  *
  */
-export const patch_order_change_status = ( req: ILRequest, id: string, status: string, cback: LCback = null ): Promise<Order> => {
-	return new Promise( async ( resolve, reject ) => {
-		/*=== f2c_start patch_order_change_status ===*/
-		const err = { message: 'Order not found' };
-		let order: Order = await _order_get( req, id );
+export const patch_order_change_status = async ( req: ILRequest, id: string, status: string ): Promise<LiWEResponse<Order>> => {
+	/*=== f2c_start patch_order_change_status ===*/
+	const err = { message: 'Order not found' };
+	let order: Order = await _order_get( req, id );
 
-		if ( !order ) return cback ? cback( err ) : reject( err );
+	if ( !order ) return responseError( err.message ); // FIXME: remove .message
 
-		if ( status in OrderStatus == false ) {
-			err.message = 'Invalid status';
-			return cback ? cback( err ) : reject( err );
-		}
+	if ( status in OrderStatus == false ) {
+		err.message = 'Invalid status';
+		return responseError( err.message ); // FIXME: remove .message
+	}
 
-		order.status = status as OrderStatus;
+	order.status = status as OrderStatus;
 
-		order = await adb_record_add( req.db, COLL_ORDERS, order, OrderKeys );
+	order = await adb_record_add( req.db, COLL_ORDERS, order, OrderKeys );
 
-		return cback ? cback( null, order ) : resolve( order );
-		/*=== f2c_end patch_order_change_status ===*/
-	} );
+	return responseSuccess( order );
+	/*=== f2c_end patch_order_change_status ===*/
 };
 // }}}
 
@@ -897,30 +772,28 @@ export const patch_order_change_status = ( req: ILRequest, id: string, status: s
  * @return : OrderPaymentLog
  *
  */
-export const order_transaction_start = ( req: ILRequest, id_order: string, payment_mode: string, transaction_id: string, session_id?: string, event_name?: string, data?: any, cback: LCback = null ): Promise<OrderPaymentLog> => {
-	return new Promise( async ( resolve, reject ) => {
-		/*=== f2c_start order_transaction_start ===*/
-		const order: Order = await _order_get( req, id_order );
-		const log: OrderPaymentLog = {
-			id: mkid( 'trns' ),
-			id_order,
-			payment_mode,
-			transaction_id,
-			session_id,
-			event_name,
-			data,
-		};
+export const order_transaction_start = async ( req: ILRequest, id_order: string, payment_mode: string, transaction_id: string, session_id?: string, event_name?: string, data?: any, cback: LCback = null ): Promise<OrderPaymentLog> => {
+	/*=== f2c_start order_transaction_start ===*/
+	const order: Order = await _order_get( req, id_order );
+	const log: OrderPaymentLog = {
+		id: mkid( 'trns' ),
+		id_order,
+		payment_mode,
+		transaction_id,
+		session_id,
+		event_name,
+		data,
+	};
 
-		order.payment_status = OrderPaymentStatus.in_pay;
-		order.payment_mode = payment_mode;
-		order.transaction_id = log.id;
+	order.payment_status = OrderPaymentStatus.in_pay;
+	order.payment_mode = payment_mode;
+	order.transaction_id = log.id;
 
-		await adb_record_add( req.db, COLL_ORDERS, order );
-		const log2 = await adb_record_add( req.db, COLL_ORDER_LOG, log, OrderPaymentLogKeys );
+	await adb_record_add( req.db, COLL_ORDERS, order );
+	const log2: OrderPaymentLog = await adb_record_add( req.db, COLL_ORDER_LOG, log, OrderPaymentLogKeys );
 
-		return cback ? cback( null, log2 ) : resolve( log2 );
-		/*=== f2c_end order_transaction_start ===*/
-	} );
+	return log2;
+	/*=== f2c_end order_transaction_start ===*/
 };
 // }}}
 
@@ -939,91 +812,91 @@ export const order_transaction_start = ( req: ILRequest, id_order: string, payme
  * @return : OrderPaymentLog
  *
  */
-export const order_transaction_update = ( req: ILRequest, id_order: string, transaction_id: string, session_id?: string, event_name?: string, data?: any, cback: LCback = null ): Promise<OrderPaymentLog> => {
-	return new Promise( async ( resolve, reject ) => {
-		/*=== f2c_start order_transaction_update ===*/
-		let log: OrderPaymentLog = {
-			id: mkid( 'trns' ),
-			id_order,
-			transaction_id,
-			session_id,
-			event_name,
-			data,
-			payment_mode: null,
-		};
+export const order_transaction_update = async ( req: ILRequest, id_order: string, transaction_id: string, session_id?: string, event_name?: string, data?: any, cback: LCback = null ): Promise<OrderPaymentLog> => {
+	/*=== f2c_start order_transaction_update ===*/
+	let log: OrderPaymentLog = {
+		id: mkid( 'trns' ),
+		id_order,
+		transaction_id,
+		session_id,
+		event_name,
+		data,
+		payment_mode: null,
+	};
 
-		log = await adb_record_add( req.db, COLL_ORDER_LOG, log, OrderPaymentLogKeys );
+	log = await adb_record_add( req.db, COLL_ORDER_LOG, log, OrderPaymentLogKeys );
 
-		return cback ? cback( null, log ) : resolve( log );
-		/*=== f2c_end order_transaction_update ===*/
-	} );
+	return log;
+	/*=== f2c_end order_transaction_update ===*/
 };
 // }}}
 
-// {{{ order_payment_completed ( req: ILRequest, id_order: string, cback: LCBack = null ): Promise<Order>
+// {{{ order_payment_completed ( req: ILRequest, id_order: string, err: any, cback: LCBack = null ): Promise<Order>
 /**
  *
  * Marks an order as paid completely.
  *
  * @param req - the Request field [req]
  * @param id_order - The Order ID [req]
+ * @param err - The error structure [req]
  *
  * @return : Order
  *
  */
-export const order_payment_completed = ( req: ILRequest, id_order: string, cback: LCback = null ): Promise<Order> => {
-	return new Promise( async ( resolve, reject ) => {
-		/*=== f2c_start order_payment_completed ===*/
-		const err = { message: "Order not found" };
-		let order: Order = await _order_get( req, id_order );
+export const order_payment_completed = async ( req: ILRequest, id_order: string, err: any, cback: LCback = null ): Promise<Order> => {
+	/*=== f2c_start order_payment_completed ===*/
+	let order: Order = await _order_get( req, id_order );
 
-		if ( !order ) return cback ? cback( err ) : reject( err );
+	if ( !order ) {
+		err.message = 'Order not found';
+		return null;
+	}
 
-		order.payment_status = OrderPaymentStatus.paid;
-		order.status = OrderStatus.paid;
+	order.payment_status = OrderPaymentStatus.paid;
+	order.status = OrderStatus.paid;
 
-		order = await adb_record_add( req.db, COLL_ORDERS, order, OrderKeys );
+	order = await adb_record_add( req.db, COLL_ORDERS, order, OrderKeys );
 
-		// scale the stock
-		await _stock_scale( req, order );
+	// scale the stock
+	await _stock_scale( req, order );
 
-		await liwe_event_emit( req, ORDER_EVENT_PAID, order );
+	await liwe_event_emit( req, ORDER_EVENT_PAID, order );
 
-		return cback ? cback( null, order ) : resolve( order );
-		/*=== f2c_end order_payment_completed ===*/
-	} );
+	return order;
+	/*=== f2c_end order_payment_completed ===*/
 };
 // }}}
 
-// {{{ order_payment_cancelled ( req: ILRequest, id_order: string, cback: LCBack = null ): Promise<Order>
+// {{{ order_payment_cancelled ( req: ILRequest, id_order: string, err: any, cback: LCBack = null ): Promise<Order>
 /**
  *
  * This function marks an order as 'cancelled'
  *
  * @param req - the Request field [req]
  * @param id_order -  [req]
+ * @param err - The error object [req]
  *
  * @return : Order
  *
  */
-export const order_payment_cancelled = ( req: ILRequest, id_order: string, cback: LCback = null ): Promise<Order> => {
-	return new Promise( async ( resolve, reject ) => {
-		/*=== f2c_start order_payment_cancelled ===*/
-		const err = { message: "Order not found" };
-		let order: Order = await _order_get( req, id_order );
+export const order_payment_cancelled = async ( req: ILRequest, id_order: string, err: any, cback: LCback = null ): Promise<Order> => {
+	/*=== f2c_start order_payment_cancelled ===*/
+	let order: Order = await _order_get( req, id_order );
 
-		if ( !order ) return cback ? cback( err ) : reject( err );
+	if ( !order ) {
+		err.message = 'Order not found';
+		return null;
+	}
 
-		order.payment_status = OrderPaymentStatus.aborted;
-		order = await adb_record_add( req.db, COLL_ORDERS, order, OrderKeys );
+	order.payment_status = OrderPaymentStatus.aborted;
+	order = await adb_record_add( req.db, COLL_ORDERS, order, OrderKeys );
 
-		return cback ? cback( null, order ) : resolve( order );
-		/*=== f2c_end order_payment_cancelled ===*/
-	} );
+	return order;
+	/*=== f2c_end order_payment_cancelled ===*/
 };
 // }}}
 
-// {{{ order_get_by_transaction_id ( req: ILRequest, transaction_id?: string, session_id?: string, payment_mode?: string, cback: LCBack = null ): Promise<Order>
+// {{{ order_get_by_transaction_id ( req: ILRequest, err: any, transaction_id?: string, session_id?: string, payment_mode?: string, cback: LCBack = null ): Promise<Order>
 /**
  *
  * Returns the order with the `transaction_id` / `session_id` specified.
@@ -1031,6 +904,7 @@ export const order_payment_cancelled = ( req: ILRequest, id_order: string, cback
  * At least one between `transaction_id` and `session_id` must be specified.
  *
  * @param req - the Request field [req]
+ * @param err - The error object [req]
  * @param transaction_id - The transaction ID [opt]
  * @param session_id - The session ID [opt]
  * @param payment_mode - The payment mode [opt]
@@ -1038,77 +912,79 @@ export const order_payment_cancelled = ( req: ILRequest, id_order: string, cback
  * @return : Order
  *
  */
-export const order_get_by_transaction_id = ( req: ILRequest, transaction_id?: string, session_id?: string, payment_mode?: string, cback: LCback = null ): Promise<Order> => {
-	return new Promise( async ( resolve, reject ) => {
-		/*=== f2c_start order_get_by_transaction_id ===*/
-		const err = { message: "Order not found" };
-		const order: Order = await adb_find_one( req.db, COLL_ORDERS, { transaction_id, payment_mode }, OrderKeys );
+export const order_get_by_transaction_id = async ( req: ILRequest, err: any, transaction_id?: string, session_id?: string, payment_mode?: string, cback: LCback = null ): Promise<Order> => {
+	/*=== f2c_start order_get_by_transaction_id ===*/
+	const order: Order = await adb_find_one( req.db, COLL_ORDERS, { transaction_id, payment_mode }, OrderKeys );
 
-		// console.log( "===== TRANSACTION: ", order );
+	// console.log( "===== TRANSACTION: ", order );
 
-		if ( !order || ( !transaction_id && !payment_mode ) ) return cback ? cback( err ) : reject( err );
-		return cback ? cback( null, order ) : resolve( order );
-		/*=== f2c_end order_get_by_transaction_id ===*/
-	} );
+	if ( !order || ( !transaction_id && !payment_mode ) ) {
+		err.message = 'Order not found';
+		return null;
+	}
+
+	return order;
+	/*=== f2c_end order_get_by_transaction_id ===*/
 };
 // }}}
 
-// {{{ order_get_full ( req: ILRequest, id: string, cback: LCBack = null ): Promise<OrderFull>
+// {{{ order_get_full ( req: ILRequest, id: string, err: any, cback: LCBack = null ): Promise<OrderFull>
 /**
  *
  * @param req - the Request field [req]
  * @param id - The order ID [req]
+ * @param err -  [req]
  *
  * @return : OrderFull
  *
  */
-export const order_get_full = ( req: ILRequest, id: string, cback: LCback = null ): Promise<OrderFull> => {
-	return new Promise( async ( resolve, reject ) => {
-		/*=== f2c_start order_get_full ===*/
-		const err = { message: "Order not found" };
-		const order: OrderFull = await _order_get_full( req, id );
+export const order_get_full = async ( req: ILRequest, id: string, err: any, cback: LCback = null ): Promise<OrderFull> => {
+	/*=== f2c_start order_get_full ===*/
+	const order: OrderFull = await _order_get_full( req, id );
 
-		if ( !order ) return cback ? cback( err ) : reject( err );
+	if ( !order ) {
+		err.message = 'Order not found';
+		return null;
+	}
 
-		return cback ? cback( null, order ) : resolve( order );
-		/*=== f2c_end order_get_full ===*/
-	} );
+	return order;
+	/*=== f2c_end order_get_full ===*/
 };
 // }}}
 
-// {{{ order_add_product ( req: ILRequest, id_order: string, id_product: string, qnt: number = 1, cback: LCBack = null ): Promise<OrderFull>
+// {{{ order_add_product ( req: ILRequest, id_order: string, id_product: string, qnt: number = 1, err: any, cback: LCBack = null ): Promise<OrderFull>
 /**
  *
  * @param req - the Request field [req]
  * @param id_order - The order ID [req]
  * @param id_product - The product ID [req]
  * @param qnt - Quantity [opt]
+ * @param err - The error object [req]
  *
  * @return : OrderFull
  *
  */
-export const order_add_product = ( req: ILRequest, id_order: string, id_product: string, qnt: number = 1, cback: LCback = null ): Promise<OrderFull> => {
-	return new Promise( async ( resolve, reject ) => {
-		/*=== f2c_start order_add_product ===*/
-		const err = { message: "Order not found" };
-		let order: Order = await _order_get( req, id_order );
+export const order_add_product = async ( req: ILRequest, id_order: string, id_product: string, qnt: number = 1, err: any, cback: LCback = null ): Promise<OrderFull> => {
+	/*=== f2c_start order_add_product ===*/
+	let order: Order = await _order_get( req, id_order );
 
-		if ( !order ) return cback ? cback( err ) : reject( err );
+	if ( !order ) {
+		err.message = 'Order not found';
+		return null;
+	}
 
-		if ( order.status != OrderStatus.new ) {
-			err.message = 'Order not modifiable';
-			return cback ? cback( err ) : reject( err );
-		}
+	if ( order.status != OrderStatus.new ) {
+		err.message = 'Order not modifiable';
+		return null;
+	}
 
-		const prod = await product_get( req, id_product );
+	const prod = await product_get( req, id_product );
+	const orderFull: OrderFull = await _add_prod( req, order, prod.code, qnt );
 
-		const orderFull: OrderFull = await _add_prod( req, order, prod.code, qnt );
+	keys_filter( orderFull, OrderFullKeys );
 
-		keys_filter( orderFull, OrderFullKeys );
-
-		return cback ? cback( null, orderFull ) : resolve( orderFull );
-		/*=== f2c_end order_add_product ===*/
-	} );
+	return orderFull;
+	/*=== f2c_end order_add_product ===*/
 };
 // }}}
 
@@ -1120,42 +996,41 @@ export const order_add_product = ( req: ILRequest, id_order: string, id_product:
  * @return : OrderFull
  *
  */
-export const order_get_open = ( req: ILRequest, cback: LCback = null ): Promise<OrderFull> => {
-	return new Promise( async ( resolve, reject ) => {
-		/*=== f2c_start order_get_open ===*/
-		const order: OrderFull = await _order_get_full( req );
+export const order_get_open = async ( req: ILRequest, cback: LCback = null ): Promise<OrderFull> => {
+	/*=== f2c_start order_get_open ===*/
+	const order: OrderFull = await _order_get_full( req );
 
-		return cback ? cback( null, order ) : resolve( order );
-		/*=== f2c_end order_get_open ===*/
-	} );
+	return order;
+	/*=== f2c_end order_get_open ===*/
 };
 // }}}
 
-// {{{ order_set_status ( req: any, id: string, status: any, cback: LCBack = null ): Promise<Order>
+// {{{ order_set_status ( req: any, id: string, status: any, err: any, cback: LCBack = null ): Promise<Order>
 /**
  *
  * @param req -  [req]
  * @param id - Order ID [req]
  * @param status - The order status [req]
+ * @param err - The error object [req]
  *
  * @return : Order
  *
  */
-export const order_set_status = ( req: any, id: string, status: any, cback: LCback = null ): Promise<Order> => {
-	return new Promise( async ( resolve, reject ) => {
-		/*=== f2c_start order_set_status ===*/
-		const err = { message: 'Order not found' };
-		const order: Order = await _order_get( null, id );
+export const order_set_status = async ( req: any, id: string, status: any, err: any, cback: LCback = null ): Promise<Order> => {
+	/*=== f2c_start order_set_status ===*/
+	const order: Order = await _order_get( null, id );
 
-		if ( !order ) return cback ? cback( err ) : reject( err );
+	if ( !order ) {
+		err.message = 'Order not found';
+		return null;
+	}
 
-		order.status = status;
+	order.status = status;
 
-		await adb_record_add( req.db, COLL_ORDERS, order, OrderKeys );
+	await adb_record_add( req.db, COLL_ORDERS, order, OrderKeys );
 
-		return cback ? cback( null, order ) : resolve( order );
-		/*=== f2c_end order_set_status ===*/
-	} );
+	return order;
+	/*=== f2c_end order_set_status ===*/
 };
 // }}}
 
@@ -1168,14 +1043,12 @@ export const order_set_status = ( req: any, id: string, status: any, cback: LCba
  * @return : Order
  *
  */
-export const order_get = ( req?: ILRequest, id?: string, cback: LCback = null ): Promise<Order> => {
-	return new Promise( async ( resolve, reject ) => {
-		/*=== f2c_start order_get ===*/
-		const order: Order = await _order_get( req, id );
+export const order_get = async ( req?: ILRequest, id?: string, cback: LCback = null ): Promise<Order> => {
+	/*=== f2c_start order_get ===*/
+	const order: Order = await _order_get( req, id );
 
-		return cback ? cback( null, order ) : resolve( order );
-		/*=== f2c_end order_get ===*/
-	} );
+	return order;
+	/*=== f2c_end order_get ===*/
 };
 // }}}
 
@@ -1189,8 +1062,7 @@ export const order_get = ( req?: ILRequest, id?: string, cback: LCback = null ):
  * @return : boolean
  *
  */
-export const order_db_init = ( liwe: ILiWE, cback: LCback = null ): Promise<boolean> => {
-	return new Promise( async ( resolve, reject ) => {
+export const order_db_init = async ( liwe: ILiWE, cback: LCback = null ): Promise<boolean> => {
 		_liwe = liwe;
 
 		system_permissions_register( 'order', _module_perms );
@@ -1226,10 +1098,11 @@ export const order_db_init = ( liwe: ILiWE, cback: LCback = null ): Promise<bool
 			{ type: "persistent", fields: [ "event_name" ], unique: false },
 		], { drop: false } );
 
-		/*=== f2c_start order_db_init ===*/
+	/*=== f2c_start order_db_init ===*/
 
-		/*=== f2c_end order_db_init ===*/
-	} );
+	/*=== f2c_end order_db_init ===*/
+
+	return true;
 };
 // }}}
 
