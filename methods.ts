@@ -4,7 +4,7 @@
  */
 
 import { ILRequest, ILResponse, LCback, ILiweConfig, ILError, ILiWE } from '../../liwe/types';
-import { LiWEResponse, responseError, responseSuccess } from '../../liwe/response';
+import { LiWEError, LiWEResponse, responseError, responseSuccess } from '../../liwe/response';
 import { $l } from '../../liwe/locale';
 import { system_permissions_register } from '../system/methods';
 
@@ -129,61 +129,57 @@ const _order_get_full = async ( req: ILRequest, id?: string | null, code?: strin
  * @param overwrite - Whether to overwrite the quantity of the product if it already exists in the order. Default is false.
  * @returns A Promise that resolves with the updated order object with all its items.
  */
-const _add_prod = ( req: ILRequest, order: Order, prod_code: string, qnt: number, overwrite = false ): Promise<OrderFull> => {
-	return new Promise( async ( resolve, reject ) => {
-		const err = { message: 'Product not found' };
-		const prod: Product = await product_get( req, null, prod_code );
+const _add_prod = async ( req: ILRequest, order: Order, prod_code: string, qnt: number, err: LiWEError, overwrite = false ): Promise<OrderFull> => {
+	const prod: Product = await product_get( req, null, prod_code, null, err );
 
-		if ( !prod ) return reject( err );
+	if ( !prod ) {
+		err.message = `Product ${ prod_code } not found`;
+		return null;
+	}
 
-		let order_item: OrderItem = null;
+	let order_item: OrderItem = null;
 
-		if ( overwrite ) {
-			await adb_del_one( req.db, COLL_ORDER_ITEMS, { id_order: order.id, prod_code } );
-		}
+	if ( overwrite ) await adb_del_one( req.db, COLL_ORDER_ITEMS, { id_order: order.id, prod_code } );
 
-		if ( prod.single ) {
-			await adb_del_one( req.db, COLL_ORDER_ITEMS, { id_order: order.id, prod_code } );
-			qnt = 1;
-		} else {
-			order_item = await adb_find_one( req.db, COLL_ORDER_ITEMS, { id_order: order.id, prod_code } );
-		}
+	if ( prod.single ) {
+		await adb_del_one( req.db, COLL_ORDER_ITEMS, { id_order: order.id, prod_code } );
+		qnt = 1;
+	} else {
+		order_item = await adb_find_one( req.db, COLL_ORDER_ITEMS, { id_order: order.id, prod_code } );
+	}
 
-		if ( !order_item ) order_item = { id: mkid( 'oitem' ), domain: order.domain, quant: 0 };
+	if ( !order_item ) order_item = { id: mkid( 'oitem' ), domain: order.domain, quant: 0 };
 
-		console.log( "=== ADD PROD: ", prod.code, prod.image );
+	order_item.name = prod.name;
+	order_item.id_order = order.id;
+	order_item.prod_code = prod.code;
+	order_item.quant += qnt;
+	order_item.image = prod.image;
 
-		order_item.name = prod.name;
-		order_item.id_order = order.id;
-		order_item.prod_code = prod.code;
-		order_item.quant += qnt;
-		order_item.image = prod.image;
+	// Original price is saved to see discount
+	order_item.orig_price_net = prod.price_net;
+	order_item.orig_price_vat = prod.price_vat;
+	order_item.orig_total_net = order_item.orig_price_net * order_item.quant;
+	order_item.orig_total_vat = order_item.orig_price_vat * order_item.quant;
 
-		// Original price is saved to see discount
-		order_item.orig_price_net = prod.price_net;
-		order_item.orig_price_vat = prod.price_vat;
-		order_item.orig_total_net = order_item.orig_price_net * order_item.quant;
-		order_item.orig_total_vat = order_item.orig_price_vat * order_item.quant;
+	// In the order_item the "price_net/vat" is the price with discount
+	order_item.price_net = prod.curr_price_net ?? prod.price_net;
+	order_item.price_vat = prod.curr_price_vat ?? prod.price_vat;
+	order_item.total_net = order_item.price_net * order_item.quant;
+	order_item.total_vat = order_item.price_vat * order_item.quant;
 
-		// In the order_item the "price_net/vat" is the price with discount
-		order_item.price_net = prod.curr_price_net ?? prod.price_net;
-		order_item.price_vat = prod.curr_price_vat ?? prod.price_vat;
-		order_item.total_net = order_item.price_net * order_item.quant;
-		order_item.total_vat = order_item.price_vat * order_item.quant;
+	// normalize price_vat, price_net, total_vat, total_net to 2 decimals
+	order_item.price_net = Math.round( order_item.price_net * 100 ) / 100;
+	order_item.price_vat = Math.round( order_item.price_vat * 100 ) / 100;
+	order_item.total_net = Math.round( order_item.total_net * 100 ) / 100;
+	order_item.total_vat = Math.round( order_item.total_vat * 100 ) / 100;
 
-		// normalize price_vat, price_net, total_vat, total_net to 2 decimals
-		order_item.price_net = Math.round( order_item.price_net * 100 ) / 100;
-		order_item.price_vat = Math.round( order_item.price_vat * 100 ) / 100;
-		order_item.total_net = Math.round( order_item.total_net * 100 ) / 100;
-		order_item.total_vat = Math.round( order_item.total_vat * 100 ) / 100;
+	order_item.vat = prod.vat;
 
-		order_item.vat = prod.vat;
+	await adb_record_add( req.db, COLL_ORDER_ITEMS, order_item );
+	const items: OrderItem[] = await _calc_order_tots_fetch( req, order );
 
-		await adb_record_add( req.db, COLL_ORDER_ITEMS, order_item );
-		const items: OrderItem[] = await _calc_order_tots_fetch( req, order );
-
-		return resolve( { ...order, items } as OrderFull );
-	} );
+	return { ...order, items } as OrderFull;
 };
 
 /**
@@ -230,12 +226,12 @@ const _calc_order_tots = ( order: Order, items: OrderItem[] ) => {
 	order.discount = Math.round( ( orig_tot_vat - tot_vat ) / orig_tot_vat * 100 );
 };
 
-const _stock_scale = async ( req: ILRequest, order: Order ) => {
+const _stock_scale = async ( req: ILRequest, order: Order, err: LiWEError ) => {
 	const items: OrderItem[] = await adb_find_all( req.db, COLL_ORDER_ITEMS, { id_order: order.id }, OrderItemKeys );
 
 	for ( const item of items ) {
-		console.log( "=== SCALE: ", item );
-		await product_stock_add( req as any, item.prod_code, -item.quant );
+		// FIXME: we need to check for stock errors
+		await product_stock_add( req as any, item.prod_code, -item.quant, err );
 	}
 
 	return true;
@@ -318,9 +314,12 @@ export const delete_order_admin_del = async ( req: ILRequest, id: string ): Prom
  */
 export const post_order_add = async ( req: ILRequest, prod_code: string, qnt: number, overwrite?: boolean ): Promise<LiWEResponse<OrderFull>> => {
 	/*=== f2c_start post_order_add ===*/
+	const err: LiWEError = { message: 'Product not found' };
 	let order: Order = await _order_get( req );
 	try {
-		const orderFull: OrderFull = await _add_prod( req, order, prod_code, qnt, overwrite );
+		const orderFull: OrderFull = await _add_prod( req, order, prod_code, qnt, err, overwrite );
+
+		if ( !orderFull ) return responseError( err.message );
 
 		keys_filter( orderFull, OrderFullKeys );
 
@@ -396,7 +395,7 @@ export const get_order_list = async ( req: ILRequest, rows: number = -1, skip: n
  * @return order: OrderFull
  *
  */
-export const get_order_cart = async ( req: ILRequest,  ): Promise<LiWEResponse<OrderFull>> => {
+export const get_order_cart = async ( req: ILRequest, ): Promise<LiWEResponse<OrderFull>> => {
 	/*=== f2c_start get_order_cart ===*/
 	const err = { message: 'Order not found' };
 	const order: OrderFull = await _order_get( req, null, null, req?.user?.id, false ) as OrderFull;
@@ -462,7 +461,7 @@ export const delete_order_item_del = async ( req: ILRequest, id_order: string, i
 // {{{ post_order_transaction_start ( req: ILRequest, id_order: string, challenge: string, payment_mode: string, transaction_id: string, session_id?: stringcback: LCBack = null ): Promise<OrderPaymentLog>
 /**
  *
- * The `challenge` parameter is a challenge hash created composing 
+ * The `challenge` parameter is a challenge hash created composing
  * `id_order`, `transaction_id`, `session_id`, `payment_mode` as set in the `data.json` config file under `security / remote`).
  *
  * @param id_order - The order ID [req]
@@ -858,7 +857,7 @@ export const order_payment_completed = async ( req: ILRequest, id_order: string,
 	order = await adb_record_add( req.db, COLL_ORDERS, order, OrderKeys );
 
 	// scale the stock
-	await _stock_scale( req, order );
+	await _stock_scale( req, order, err );
 
 	await liwe_event_emit( req, ORDER_EVENT_PAID, order );
 
@@ -978,8 +977,11 @@ export const order_add_product = async ( req: ILRequest, id_order: string, id_pr
 		return null;
 	}
 
-	const prod = await product_get( req, id_product );
-	const orderFull: OrderFull = await _add_prod( req, order, prod.code, qnt );
+	const prod = await product_get( req, id_product, null, null, err );
+	if ( !prod ) return null;
+
+	const orderFull: OrderFull = await _add_prod( req, order, prod.code, qnt, err );
+	if ( !orderFull ) return null;
 
 	keys_filter( orderFull, OrderFullKeys );
 
@@ -1063,40 +1065,40 @@ export const order_get = async ( req?: ILRequest, id?: string, cback: LCback = n
  *
  */
 export const order_db_init = async ( liwe: ILiWE, cback: LCback = null ): Promise<boolean> => {
-		_liwe = liwe;
+	_liwe = liwe;
 
-		system_permissions_register( 'order', _module_perms );
+	system_permissions_register( 'order', _module_perms );
 
-		await adb_collection_init( liwe.db, COLL_ORDERS, [
-			{ type: "persistent", fields: [ "id" ], unique: true },
-			{ type: "persistent", fields: [ "domain" ], unique: false },
-			{ type: "persistent", fields: [ "code" ], unique: true },
-			{ type: "persistent", fields: [ "id_user" ], unique: false },
-			{ type: "persistent", fields: [ "session" ], unique: false },
-			{ type: "persistent", fields: [ "status" ], unique: false },
-			{ type: "persistent", fields: [ "valid" ], unique: false },
-			{ type: "persistent", fields: [ "payment_mode" ], unique: false },
-			{ type: "persistent", fields: [ "transaction_id" ], unique: false },
-			{ type: "persistent", fields: [ "session_id" ], unique: false },
-			{ type: "persistent", fields: [ "payment_status" ], unique: false },
-			{ type: "persistent", fields: [ "deleted" ], unique: false },
-		], { drop: false } );
+	await adb_collection_init( liwe.db, COLL_ORDERS, [
+		{ type: "persistent", fields: [ "id" ], unique: true },
+		{ type: "persistent", fields: [ "domain" ], unique: false },
+		{ type: "persistent", fields: [ "code" ], unique: true },
+		{ type: "persistent", fields: [ "id_user" ], unique: false },
+		{ type: "persistent", fields: [ "session" ], unique: false },
+		{ type: "persistent", fields: [ "status" ], unique: false },
+		{ type: "persistent", fields: [ "valid" ], unique: false },
+		{ type: "persistent", fields: [ "payment_mode" ], unique: false },
+		{ type: "persistent", fields: [ "transaction_id" ], unique: false },
+		{ type: "persistent", fields: [ "session_id" ], unique: false },
+		{ type: "persistent", fields: [ "payment_status" ], unique: false },
+		{ type: "persistent", fields: [ "deleted" ], unique: false },
+	], { drop: false } );
 
-		await adb_collection_init( liwe.db, COLL_ORDER_ITEMS, [
-			{ type: "persistent", fields: [ "id" ], unique: true },
-			{ type: "persistent", fields: [ "domain" ], unique: false },
-			{ type: "persistent", fields: [ "id_order" ], unique: false },
-			{ type: "persistent", fields: [ "prod_code" ], unique: false },
-		], { drop: false } );
+	await adb_collection_init( liwe.db, COLL_ORDER_ITEMS, [
+		{ type: "persistent", fields: [ "id" ], unique: true },
+		{ type: "persistent", fields: [ "domain" ], unique: false },
+		{ type: "persistent", fields: [ "id_order" ], unique: false },
+		{ type: "persistent", fields: [ "prod_code" ], unique: false },
+	], { drop: false } );
 
-		await adb_collection_init( liwe.db, COLL_ORDER_LOG, [
-			{ type: "persistent", fields: [ "id" ], unique: true },
-			{ type: "persistent", fields: [ "id_order" ], unique: false },
-			{ type: "persistent", fields: [ "payment_mode" ], unique: false },
-			{ type: "persistent", fields: [ "transaction_id" ], unique: false },
-			{ type: "persistent", fields: [ "session_id" ], unique: false },
-			{ type: "persistent", fields: [ "event_name" ], unique: false },
-		], { drop: false } );
+	await adb_collection_init( liwe.db, COLL_ORDER_LOG, [
+		{ type: "persistent", fields: [ "id" ], unique: true },
+		{ type: "persistent", fields: [ "id_order" ], unique: false },
+		{ type: "persistent", fields: [ "payment_mode" ], unique: false },
+		{ type: "persistent", fields: [ "transaction_id" ], unique: false },
+		{ type: "persistent", fields: [ "session_id" ], unique: false },
+		{ type: "persistent", fields: [ "event_name" ], unique: false },
+	], { drop: false } );
 
 	/*=== f2c_start order_db_init ===*/
 
